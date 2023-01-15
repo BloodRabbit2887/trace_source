@@ -1,0 +1,38 @@
+server:
+  port: 8099
+spring:
+  application:
+    name: trace_source
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    name: defaultDataSource
+    url: jdbc:mysql://148.70.151.234:3306/trace_source?useUnicode=true&characterEncoding=UTF8&useSSL=false&serverTimezone=GMT%2B8
+    username: root
+    password: qichen
+  redis:
+    host: 118.24.112.64
+    port: 6379
+    timeout: 5000
+    password: 03402B88C54B467A90E7435E8930ECE0
+  servlet:
+    multipart:
+      max-request-size: 100MB
+      max-file-size: 500MB
+  jackson:
+    date-format: java.text.SimpleDateFormat
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+logging:
+  config: classpath:logback-spring.xml
+  file:
+    path: /trace_source/logs/
+jodconverter:
+  local:
+    enabled: true
+    office-home: "C:\\tomcat_static\\spot_check\\upload\\open_office" #online
+#    office-home: "E:\\work_tool_blood_rabbit\\open_office" #dev
+    max-tasks-per-process: 10
+    port-numbers: 8101
