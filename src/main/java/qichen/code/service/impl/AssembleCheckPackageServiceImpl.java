@@ -9,14 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import qichen.code.entity.*;
-import qichen.code.entity.dto.AssembleCheckPackageDTO;
-import qichen.code.entity.dto.AssembleComponentDTO;
-import qichen.code.entity.dto.ComponentOptionDTO;
-import qichen.code.entity.dto.SubmitComponentOptionDTO;
+import qichen.code.entity.dto.*;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.AssembleCheckPackageMapper;
+import qichen.code.model.AssembleTableTypeModel;
 import qichen.code.model.DeptTypeModel;
+import qichen.code.model.Filter;
 import qichen.code.service.IAssembleCheckPackageService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
@@ -55,18 +54,22 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
     @Transactional
     @Override
     public AssembleCheckPackage add(AssembleCheckPackageDTO dto) {
+
+        checkDraft(dto);
+
+        checkAlready(dto.getNumber());
+
         //TODO
         WorkOrder workOrder = workOrderService.getUnFinish(dto.getNumber());
         if (workOrder==null){
             throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前装配车间无待完成工单");
         }
-        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+/*        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
             throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前装配车间无待完成工单");
-        }
-        checkAlready(dto.getNumber());
+        }*/
+
         if (dto.getDraft()==null || dto.getDraft()==0){
             Map<String,String> params = new HashMap<>();
-            params.put("title","标题");
             params.put("number","模号");
             params.put("submitId","创建人");
             params.put("components","部件检查项");
@@ -78,6 +81,15 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
 
         List<AssembleComponentDTO> components = dto.getComponents();
         if (!CollectionUtils.isEmpty(components) && components.size()>0){
+
+            List<SubmitComponentOption> submitComponentOptions = new ArrayList<>();
+            if (dto.getId()!=null){
+                SubmitComponentOptionDTO submitComponentOptionDTO = new SubmitComponentOptionDTO();
+                submitComponentOptionDTO.setCheckTableId(dto.getId());
+                submitComponentOptions = submitComponentOptionService.listFilter(submitComponentOptionDTO,new Filter());
+            }
+
+
             List<AssembleComponentDTO> componentDTOS = assembleComponentService.listDTO(BeanUtils.copyAs(components, AssembleComponent.class));
             List<SubmitComponentOptionDTO> submits = new ArrayList<>();
             List<ComponentOptionDTO> optionDTOS = new ArrayList<>();
@@ -95,6 +107,8 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
             }
             if (!CollectionUtils.isEmpty(optionDTOS) && optionDTOS.size()>0){
 
+                List<SubmitComponentOption> finalSubmitComponentOptions = submitComponentOptions;
+
                 List<SubmitComponentOption> options = optionDTOS.stream().map(optionDTO -> {
                     SubmitComponentOption option = new SubmitComponentOption();
                     if (!CollectionUtils.isEmpty(submits) && submits.size()>0){
@@ -104,6 +118,15 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
                             }
                         }
                     }
+
+                    if (!CollectionUtils.isEmpty(finalSubmitComponentOptions) && finalSubmitComponentOptions.size()>0){
+                        for (SubmitComponentOption componentOption : finalSubmitComponentOptions) {
+                            if (componentOption.getOptionId().equals(optionDTO.getId())){
+                                option.setId(componentOption.getId());
+                            }
+                        }
+                    }
+
                     option.setOptionId(optionDTO.getId());
                     option.setCheckTableId(checkPackage.getId());
                     return option;
@@ -113,6 +136,19 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
             }
         }
         return checkPackage;
+    }
+
+    private void checkDraft(AssembleCheckPackageDTO dto) {
+        QueryWrapper<AssembleCheckPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        if (dto.getId()!=null){
+            wrapper.ne("`ID`",dto.getId());
+        }
+        Integer count = baseMapper.selectCount(wrapper);
+        if (count>0){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前存在草稿未完成");
+        }
     }
 
     @Override
@@ -133,6 +169,75 @@ public class AssembleCheckPackageServiceImpl extends ServiceImpl<AssembleCheckPa
         }
 
         return checkPackage;
+    }
+
+    @Override
+    public AssembleCheckPackageDTO getAlloyModel(Integer userId, String nummber) {
+        AssembleCheckPackageDTO dto = new AssembleCheckPackageDTO();
+        dto.setNumber(nummber);
+
+        WorkOrder workOrder = workOrderService.getUnFinish(nummber);
+        if (workOrder==null){
+            return null;
+        }
+
+        AssembleCheckPackage checkPackage = getDraft(userId);
+        if (checkPackage!=null){
+            dto = BeanUtils.copyAs(checkPackage,AssembleCheckPackageDTO.class);
+        }
+
+        AssembleComponentDTO assembleComponentDTO = new AssembleComponentDTO();
+        assembleComponentDTO.setCheckType(AssembleTableTypeModel.TYPE_PACKAGE);
+        assembleComponentDTO.setStatus(0);
+        List<AssembleComponentDTO> assembleComponentDTOS = assembleComponentService.listByFilter(assembleComponentDTO,new Filter());
+        if (!CollectionUtils.isEmpty(assembleComponentDTOS) && assembleComponentDTOS.size()>0){
+
+            List<SubmitComponentOption> submitComponentOptions = new ArrayList<>();
+            if (dto.getId()!=null){
+                SubmitComponentOptionDTO submitComponentOptionDTO = new SubmitComponentOptionDTO();
+                submitComponentOptionDTO.setCheckTableId(dto.getId());
+                submitComponentOptions = submitComponentOptionService.listFilter(submitComponentOptionDTO,new Filter());
+            }
+
+            for (AssembleComponentDTO componentDTO : assembleComponentDTOS) {
+                List<ComponentOptionDTO> componentOptions = componentDTO.getComponentOptions();
+                if (!CollectionUtils.isEmpty(componentOptions) && componentOptions.size()>0){
+                    List<SubmitComponentOption> finalSubmitComponentOptions = submitComponentOptions;
+
+                    List<SubmitComponentOptionDTO> dtoList = componentOptions.stream().map(optionDTO -> {
+                        SubmitComponentOptionDTO submitDTO = new SubmitComponentOptionDTO();
+                        submitDTO.setOptionId(optionDTO.getId());
+                        submitDTO.setType(optionDTO.getType());
+
+                        if (!CollectionUtils.isEmpty(finalSubmitComponentOptions) && finalSubmitComponentOptions.size() > 0) {
+                            for (SubmitComponentOption option : finalSubmitComponentOptions) {
+                                if (option.getOptionId().equals(submitDTO.getOptionId())) {
+                                    submitDTO = BeanUtils.copyAs(option, SubmitComponentOptionDTO.class);
+                                }
+                            }
+                        }
+                        submitDTO.setNumber(optionDTO.getNumber());
+                        submitDTO.setCheckDetail(optionDTO.getDetail());
+                        submitDTO.setNeeds(optionDTO.getNeeds());
+                        return submitDTO;
+                    }).collect(Collectors.toList());
+
+                    componentDTO.setSubmitOptions(dtoList);
+                    componentDTO.setComponentOptions(null);
+                }
+            }
+
+            dto.setComponents(assembleComponentDTOS);
+        }
+
+        return dto;
+    }
+
+    private AssembleCheckPackage getDraft(Integer userId) {
+        QueryWrapper<AssembleCheckPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("submitId",userId);
+        wrapper.eq("`draft`",1);
+        return getOne(wrapper);
     }
 
     private void removeByNumber(String number, Integer id) {

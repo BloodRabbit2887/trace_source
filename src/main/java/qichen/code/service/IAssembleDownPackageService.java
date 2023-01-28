@@ -17,4 +17,6 @@ public interface IAssembleDownPackageService extends IService<AssembleDownPackag
     AssembleDownPackage add(AssembleDownPackageDTO dto);
 
     AssembleDownPackage verify(Integer id, Integer userId, Integer status, String remark);
+
+    AssembleDownPackageDTO getAlloyModel(Integer userId, String nummber);
 }

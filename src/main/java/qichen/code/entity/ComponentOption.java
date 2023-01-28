@@ -91,5 +91,8 @@ private static final long serialVersionUID=1L;
     @TableField("updateTime")
     private LocalDateTime updateTime;
 
+    @TableField("`type`")
+    private Integer type;
+
 
 }

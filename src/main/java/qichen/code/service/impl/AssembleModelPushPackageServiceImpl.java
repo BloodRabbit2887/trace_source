@@ -15,6 +15,7 @@ import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.AssembleModelPushPackageMapper;
 import qichen.code.model.DeptTypeModel;
+import qichen.code.model.Filter;
 import qichen.code.service.IAssembleModelPushPackageService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,19 +53,22 @@ public class AssembleModelPushPackageServiceImpl extends ServiceImpl<AssembleMod
     @Transactional
     @Override
     public AssembleModelPushPackage add(AssembleModelPushPackageDTO dto) {
+
+        checkDraft(dto);
+
+        checkAlready(dto.getNumber());
+
         //TODO
         WorkOrder workOrder = workOrderService.getUnFinish(dto.getNumber());
         if (workOrder==null){
             throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前装配车间无待完成工单");
         }
-        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+/*        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
             throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前装配车间无待完成工单");
-        }
+        }*/
 
-        checkAlready(dto.getNumber());
         if (dto.getDraft()==null || dto.getDraft()==0){
             Map<String,String> params = new HashMap<>();
-            params.put("title","标题");
             params.put("number","模号");
             params.put("submitId","创建人");
             params.put("submitOptions","入库点检项");
@@ -75,7 +80,17 @@ public class AssembleModelPushPackageServiceImpl extends ServiceImpl<AssembleMod
 
         List<ModelPushOption> list = modelPushOptionService.list();
         if (!CollectionUtils.isEmpty(list) && list.size()>0){
+
+            List<SubmitModelPushOption> submitModelPushOptions = new ArrayList<>();
+            if (dto.getId()!=null){
+                SubmitModelPushOptionDTO submitModelPushOptionDTO = new SubmitModelPushOptionDTO();
+                submitModelPushOptionDTO.setPackageId(dto.getId());
+                submitModelPushOptions = submitModelPushOptionService.listFilter(submitModelPushOptionDTO,new Filter());
+            }
+
+
             List<SubmitModelPushOptionDTO> submitOptions = dto.getSubmitOptions();
+            List<SubmitModelPushOption> finalSubmitModelPushOptions = submitModelPushOptions;
             List<SubmitModelPushOption> options = list.stream().map(modelPushOption -> {
                 SubmitModelPushOption submitOption = new SubmitModelPushOption();
                 submitOption.setOptionId(modelPushOption.getId());
@@ -90,12 +105,32 @@ public class AssembleModelPushPackageServiceImpl extends ServiceImpl<AssembleMod
                         }
                     }
                 }
+                if (!CollectionUtils.isEmpty(finalSubmitModelPushOptions) && finalSubmitModelPushOptions.size()>0){
+                    for (SubmitModelPushOption pushOption : finalSubmitModelPushOptions) {
+                        if (pushOption.getOptionId().equals(modelPushOption.getId())){
+                            submitOption.setId(pushOption.getId());
+                        }
+                    }
+                }
                 return submitOption;
             }).collect(Collectors.toList());
             submitModelPushOptionService.saveOrUpdateBatch(options);
         }
 
         return null;
+    }
+
+    private void checkDraft(AssembleModelPushPackageDTO dto) {
+        QueryWrapper<AssembleModelPushPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        if (dto.getId()!=null){
+            wrapper.ne("`ID`",dto.getId());
+        }
+        Integer count = baseMapper.selectCount(wrapper);
+        if (count>0){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前存在草稿未完成");
+        }
     }
 
     @Override

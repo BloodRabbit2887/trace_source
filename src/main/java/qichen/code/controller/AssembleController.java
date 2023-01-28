@@ -139,6 +139,35 @@ public class AssembleController {
     }
 
 
+    @ResponseBody
+    @GetMapping("/package/getModel")
+    public ResponseBean getPackageModel(HttpServletRequest request,@RequestParam(value = "number") String nummber){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (!user.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        if (!user.getAssembleTableType().equals(AssembleTableTypeModel.TYPE_PACKAGE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        try {
+            AssembleCheckPackageDTO dto = assembleCheckPackageService.getAlloyModel(user.getId(),nummber);
+            return new ResponseBean(dto);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+
     //TODO 合金装组检查提交
     @ResponseBody
     @PostMapping("/package/add")
@@ -158,6 +187,11 @@ public class AssembleController {
         }
         try {
             dto.setSubmitId(user.getId());
+
+            //TODO 正式删除
+            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);
+
             AssembleCheckPackage checkPackage = assembleCheckPackageService.add(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "提交【合金组装组工作检查表】表(装配车间)", "t_assemble_check_package", checkPackage.getId(), JSON.toJSONString(checkPackage));
             return new ResponseBean();
@@ -199,6 +233,36 @@ public class AssembleController {
         }
     }
 
+    @ResponseBody
+    @GetMapping("/plank/getModel")
+    public ResponseBean getPlankModel(HttpServletRequest request,@RequestParam(value = "number") String nummber){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (!user.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        if (!user.getAssembleTableType().equals(AssembleTableTypeModel.TYPE_PLANK)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        try {
+            AssemblePlankPackageDTO dto = assemblePlankPackageService.getAlloyModel(user.getId(),nummber);
+            return new ResponseBean(dto);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+
+
 
     //TODO 合金装组检查提交
     @ResponseBody
@@ -219,6 +283,11 @@ public class AssembleController {
         }
         try {
             dto.setSubmitId(user.getId());
+
+            //TODO 正式删除
+            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);
+
             AssemblePlankPackage checkPackage = assemblePlankPackageService.add(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "提交【模架组导槽板工作检查表】表(装配车间)", "t_assemble_plank_package", checkPackage.getId(), JSON.toJSONString(checkPackage));
             return new ResponseBean();
@@ -260,6 +329,36 @@ public class AssembleController {
         }
     }
 
+
+    @ResponseBody
+    @GetMapping("/down/getModel")
+    public ResponseBean getDownModel(HttpServletRequest request,@RequestParam(value = "number") String nummber){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (!user.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        if (!user.getAssembleTableType().equals(AssembleTableTypeModel.TYPE_DOWN)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        try {
+            AssembleDownPackageDTO dto = assembleDownPackageService.getAlloyModel(user.getId(),nummber);
+            return new ResponseBean(dto);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+
     //TODO 合金装组检查提交
     @ResponseBody
     @PostMapping("/down/add")
@@ -279,6 +378,11 @@ public class AssembleController {
         }
         try {
             dto.setSubmitId(user.getId());
+
+            //TODO 正式删除
+            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);
+
             AssembleDownPackage checkPackage = assembleDownPackageService.add(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "提交【模架组下模座垫板工作检查】表(装配车间)", "t_assemble_down_package", checkPackage.getId(), JSON.toJSONString(checkPackage));
             return new ResponseBean();
@@ -380,7 +484,33 @@ public class AssembleController {
         }
     }
 
-
+    @ResponseBody
+    @GetMapping("/base/getModel")
+    public ResponseBean getBaseModel(HttpServletRequest request,@RequestParam(value = "number") String nummber){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (!user.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        if (!user.getAssembleTableType().equals(AssembleTableTypeModel.TYPE_MOULE_BASE)){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        try {
+            MouldBasePackageDTO dto = mouldBasePackageService.getAlloyModel(user.getId(),nummber);
+            return new ResponseBean(dto);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
 
     //TODO 合金装组检查提交
     @ResponseBody
@@ -401,6 +531,11 @@ public class AssembleController {
         }
         try {
             dto.setSubmitId(user.getId());
+
+            //TODO 正式删除
+            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);
+
             MouldBasePackage checkPackage = mouldBasePackageService.add(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "提交【模架组装组工作检查】表(装配车间)", "t_mould_base_package", checkPackage.getId(), JSON.toJSONString(checkPackage));
             return new ResponseBean();

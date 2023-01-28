@@ -2,6 +2,10 @@ package qichen.code.service;
 
 import qichen.code.entity.SubmitComponentOption;
 import com.baomidou.mybatisplus.extension.service.IService;
+import qichen.code.entity.dto.SubmitComponentOptionDTO;
+import qichen.code.model.Filter;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +17,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface ISubmitComponentOptionService extends IService<SubmitComponentOption> {
 
+    List<SubmitComponentOption> listFilter(SubmitComponentOptionDTO dto, Filter filter);
 }

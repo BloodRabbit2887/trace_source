@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import qichen.code.entity.AssembleComponent;
 import qichen.code.entity.ComponentOption;
 import qichen.code.entity.dto.AssembleComponentDTO;
@@ -99,7 +100,6 @@ public class AssembleComponentServiceImpl extends ServiceImpl<AssembleComponentM
 
         List<AssembleComponentDTO> dtos = BeanUtils.copyAs(components, AssembleComponentDTO.class);
 
-
         List<Integer> componentIds = components.stream().map(AssembleComponent::getId).distinct().collect(Collectors.toList());
 
         ComponentOptionDTO componentOptionDTO = new ComponentOptionDTO();
@@ -117,6 +117,49 @@ public class AssembleComponentServiceImpl extends ServiceImpl<AssembleComponentM
         }
 
         return dtos;
+    }
+
+    @Override
+    public List<AssembleComponentDTO> listByFilter(AssembleComponentDTO dto, Filter filter) {
+        List<AssembleComponent> list = listFilter(dto,filter);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+           return listDTO(list);
+        }
+        return null;
+    }
+
+    private List<AssembleComponent> listFilter(AssembleComponentDTO dto, Filter filter) {
+        QueryWrapper<AssembleComponent> wrapper = new QueryWrapper<>();
+        addFilter(wrapper,dto,filter);
+        return list(wrapper);
+    }
+
+    private void addFilter(QueryWrapper<AssembleComponent> wrapper, AssembleComponentDTO dto, Filter filter) {
+        if (dto!=null){
+            if (dto.getCheckType()!=null){
+                wrapper.eq("`checkType`",dto.getCheckType());
+            }
+            if (dto.getStatus()!=null){
+                wrapper.eq("`Status`",dto.getStatus());
+            }
+        }
+        if (filter!=null){
+            if (filter.getCreateTimeBegin()!=null){
+                wrapper.ge("createTime",filter.getCreateTimeBegin());
+            }
+            if (filter.getCreateTimeEnd()!=null){
+                wrapper.le("createTime",filter.getCreateTimeEnd());
+            }
+            if (!StringUtils.isEmpty(filter.getOrders()) && filter.getOrders().length()>0){
+                if (filter.getOrderBy()!=null){
+                    wrapper.orderBy(true,filter.getOrderBy(),filter.getOrders());
+                }
+            }
+            if (filter.getPage()!=null && filter.getPageSize()!=null && filter.getPage()!=0 && filter.getPageSize()!=0){
+                int fast = filter.getPage()<=1?0:(filter.getPage()-1)*filter.getPageSize();
+                wrapper.last(" limit "+fast+", "+filter.getPageSize());
+            }
+        }
     }
 
     private void checkAlready(AssembleComponentDTO assembleComponentDTO) {

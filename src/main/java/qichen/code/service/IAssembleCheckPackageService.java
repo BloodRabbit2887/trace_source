@@ -17,4 +17,6 @@ public interface IAssembleCheckPackageService extends IService<AssembleCheckPack
     AssembleCheckPackage add(AssembleCheckPackageDTO dto);
 
     AssembleCheckPackage verify(Integer id, Integer userId, Integer status, String remark);
+
+    AssembleCheckPackageDTO getAlloyModel(Integer userId, String nummber);
 }

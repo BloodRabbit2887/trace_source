@@ -10,6 +10,8 @@ import java.util.List;
 @Data
 public class AssembleCheckAlloyPackageDTO extends AssembleCheckAlloyPackage {
 
+    private String modelTitle;
+
     private List<AssembleComponentDTO> components;
 
 }

@@ -11,4 +11,5 @@ public class SubmitComponentOptionDTO extends SubmitComponentOption {
     private Integer number;
     private String checkDetail;
     private String needs;
+    private Integer type;
 }

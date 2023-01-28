@@ -17,4 +17,6 @@ public interface IAssemblePlankPackageService extends IService<AssemblePlankPack
     AssemblePlankPackage add(AssemblePlankPackageDTO dto);
 
     AssemblePlankPackage verify(Integer id, Integer userId, Integer status, String remark);
+
+    AssemblePlankPackageDTO getAlloyModel(Integer userId, String nummber);
 }

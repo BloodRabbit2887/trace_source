@@ -17,4 +17,6 @@ public interface IMouldBasePackageService extends IService<MouldBasePackage> {
     MouldBasePackage add(MouldBasePackageDTO dto);
 
     MouldBasePackage verify(MouldBasePackageDTO dto, Integer userId);
+
+    MouldBasePackageDTO getAlloyModel(Integer userId, String nummber);
 }

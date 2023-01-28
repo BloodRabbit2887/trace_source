@@ -2,6 +2,11 @@ package qichen.code.service;
 
 import qichen.code.entity.SubmitModelPushOption;
 import com.baomidou.mybatisplus.extension.service.IService;
+import qichen.code.entity.dto.AssembleModelPushPackageDTO;
+import qichen.code.entity.dto.SubmitModelPushOptionDTO;
+import qichen.code.model.Filter;
+
+import java.util.List;
 
 /**
  * <p>
@@ -13,4 +18,5 @@ import com.baomidou.mybatisplus.extension.service.IService;
  */
 public interface ISubmitModelPushOptionService extends IService<SubmitModelPushOption> {
 
+    List<SubmitModelPushOption> listFilter(SubmitModelPushOptionDTO dto, Filter filter);
 }

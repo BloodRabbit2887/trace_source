@@ -3,6 +3,7 @@ package qichen.code.service;
 import qichen.code.entity.AssembleComponent;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.AssembleComponentDTO;
+import qichen.code.model.Filter;
 
 import java.util.List;
 
@@ -23,4 +24,6 @@ public interface IAssembleComponentService extends IService<AssembleComponent> {
     AssembleComponent delete(Integer id);
 
     List<AssembleComponentDTO> listDTO(List<AssembleComponent> components);
+
+    List<AssembleComponentDTO> listByFilter(AssembleComponentDTO dto, Filter filter);
 }
