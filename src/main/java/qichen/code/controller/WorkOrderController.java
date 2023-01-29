@@ -10,6 +10,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
+import qichen.code.entity.WorkOrder;
 import qichen.code.entity.dto.AdminDTO;
 import qichen.code.entity.dto.ParameterDTO;
 import qichen.code.entity.dto.UserDTO;
@@ -20,6 +21,7 @@ import qichen.code.model.DeptTypeModel;
 import qichen.code.model.Filter;
 import qichen.code.model.LinkModel;
 import qichen.code.model.ResponseBean;
+import qichen.code.service.IOperationLogService;
 import qichen.code.service.IParameterService;
 import qichen.code.service.IWorkOrderService;
 import qichen.code.utils.UserContextUtils;
@@ -49,6 +51,8 @@ public class WorkOrderController {
     private UserContextUtils userContextUtils;
     @Autowired
     private IParameterService parameterService;
+    @Autowired
+    private IOperationLogService operationLogService;
 
 
     @ResponseBody
@@ -297,6 +301,37 @@ public class WorkOrderController {
         model.setLinks(links);
 
         return model;
+    }
+
+
+    //环节推送
+    @ResponseBody
+    @GetMapping("/linkChange")
+    public ResponseBean linkChange(HttpServletRequest request,
+                                   @RequestParam(value = "number") String number,
+                                   @RequestParam(value = "status") Integer status,
+                                   @RequestParam(value = "remark",required = false) String remark){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (user.getType()!=1){
+            return new ResponseBean(new BusinessException(ResException.USER_PER_MISS.getCode(),"职工无环节推进权限,请联系部门主管"));
+        }
+        try {
+            WorkOrder workOrder = workOrderService.linkChange(user.getId(),number,status,remark);
+            operationLogService.saveOperationLog(user.getType(),user.getId(),"410","工单环节推进【"+DeptTypeModel.TYPE_MAP.get(user.getDeptId())+"】","t_work_order",workOrder.getId(), JSON.toJSONString(workOrder));
+            return new ResponseBean();
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
     }
 }
 

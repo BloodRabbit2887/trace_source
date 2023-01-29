@@ -33,7 +33,6 @@ public interface IWorkOrderService extends IService<WorkOrder> {
 
     WorkOrder linkChange(Integer userId, String number,Integer status,String remark);
 
-
     Object getDraft(Integer userId, Integer submitType);
 
     WorkOrder getUnFinish(String number);
