@@ -10,5 +10,6 @@ public class ErrModelDTO extends ErrModel {
 
     private String errTypeName;
     private String errTypeRemark;
+    private String submitName;
 
 }

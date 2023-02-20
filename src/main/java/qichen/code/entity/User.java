@@ -109,7 +109,6 @@ private static final long serialVersionUID=1L;
     @TableField("`type`")
     private Integer type;
 
-
     /**
      * 工单审核权限 0无 1有
      */
@@ -119,5 +118,8 @@ private static final long serialVersionUID=1L;
 
     @TableField("AssembleTableType")
     private Integer AssembleTableType;
+
+    @TableField("deptRoleId")
+    private Integer deptRoleId;
 
 }

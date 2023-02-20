@@ -79,10 +79,9 @@ public class ErrModelController {
 
     @ResponseBody
     @GetMapping("/query")
-    public ResponseBean query(HttpServletRequest request,
-                              @RequestParam(value = "status", required = false) Integer status,
+    public ResponseBean query(@RequestParam(value = "status", required = false) Integer status,
                               @RequestParam(value = "typeId", required = false) Integer typeId,
-                              @RequestParam(value = "verifyStatus",required = false) Integer verifyStatus,
+                              @RequestParam(value = "verifyStatus",defaultValue = "1") Integer verifyStatus,
                               @RequestParam(value = "page", defaultValue = "1") Integer page,
                               @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
                               @RequestParam(value = "createTimeBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date createTimeBegin,

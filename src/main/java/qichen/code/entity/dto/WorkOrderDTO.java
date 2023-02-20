@@ -17,6 +17,7 @@ public class WorkOrderDTO extends WorkOrder {
     private String electricName;//电机类型名称
     private String saleName;//业务员名称
     private String countStr;//列数名称
+    private String deptName;
 
     public static final Integer STATUS_UN_FINISH = 1;
     public static final Integer STATUS_FINISH = 2;
@@ -51,5 +52,9 @@ public class WorkOrderDTO extends WorkOrder {
 
     private String afterUserName;
     private LocalDateTime afterCreateTime;
+
+    private Integer userId;
+    private List<String> numbers;
+
 
 }

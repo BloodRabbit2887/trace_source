@@ -351,10 +351,9 @@ public class FileUtils {
 		int index = originalFilename.lastIndexOf(".");
 		String extension = originalFilename.substring(index);
 		String md5Str = HashUtils.getMd5(is);
-		String realPath = localUrl;
+/*		String realPath = localUrl;*/
 
-
-		File dest = new File(realPath + "/" + md5Str + extension);
+		File dest = new File(localUrl + "/" + md5Str + extension);
 		try {
 			file.transferTo(dest);
 		} catch (Exception e) {
@@ -365,7 +364,6 @@ public class FileUtils {
 		} catch (IOException e) {
 			throw new FrameworkException(e);
 		}
-
 
 		List<String> strings = PdfUtil.pdfToPng(localUrl + "/" + md5Str+".pdf", "png", waterMark, Color.GRAY);
 

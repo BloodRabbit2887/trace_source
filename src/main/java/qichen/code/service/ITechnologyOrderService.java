@@ -3,6 +3,10 @@ package qichen.code.service;
 import qichen.code.entity.TechnologyOrder;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.TechonologyOrderDTO;
+import qichen.code.model.Filter;
+
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  * <p>
@@ -25,4 +29,12 @@ public interface ITechnologyOrderService extends IService<TechnologyOrder> {
     TechonologyOrderDTO getWorkOrderModel(Integer userId, String number);
 
     TechonologyOrderDTO getByWorkOrderId(Integer workerOrderId, boolean draft);
+
+    List<TechonologyOrderDTO> listByFilter(TechonologyOrderDTO dto, Filter filter);
+
+    BigInteger listCount(TechonologyOrderDTO dto, Filter filter);
+
+    List<TechnologyOrder> listFilter(TechonologyOrderDTO dto, Filter filter);
+
+    TechonologyOrderDTO getDetail(Integer id);
 }

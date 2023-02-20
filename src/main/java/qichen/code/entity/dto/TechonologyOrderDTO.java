@@ -13,4 +13,9 @@ public class TechonologyOrderDTO extends TechnologyOrder {
     private List<TableOptionDTO> tableOptions;
 
     private List<SubmitTableOptionDTO> submitOptions;
+
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

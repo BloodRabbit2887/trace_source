@@ -16,15 +16,13 @@ import qichen.code.mapper.AssemblePlankPackageMapper;
 import qichen.code.model.AssembleTableTypeModel;
 import qichen.code.model.DeptTypeModel;
 import qichen.code.model.Filter;
-import qichen.code.service.IAssembleComponentService;
-import qichen.code.service.IAssemblePlankPackageService;
+import qichen.code.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
-import qichen.code.service.ISubmitComponentOptionService;
-import qichen.code.service.IWorkOrderService;
 import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,13 +47,22 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
     private IAssembleComponentService assembleComponentService;
     @Autowired
     private ISubmitComponentOptionService submitComponentOptionService;
+    @Autowired
+    private IAdminService adminService;
+    @Autowired
+    private IUserService userService;
+    @Autowired
+    private IUserTableProjectService userTableProjectService;
 
 
     @Transactional
     @Override
     public AssemblePlankPackage add(AssemblePlankPackageDTO dto) {
 
-        checkDraft(dto);
+/*        checkDraft(dto);*/
+        if (dto.getId()==null){
+            removeDraft(dto);
+        }
 
         checkAlready(dto.getNumber());
 
@@ -76,6 +83,8 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
             params.put("submitId","创建人");
             params.put("components","部件检查项");
             JsonUtils.checkColumnNull(params, JSONObject.parseObject(JSON.toJSONString(dto)));
+
+            userTableProjectService.updateStatus(dto.getNumber(),dto.getSubmitId(),1,AssembleTableTypeModel.TYPE_PLANK);
         }
 
         AssemblePlankPackage plankPackage = BeanUtils.copyAs(dto, AssemblePlankPackage.class);
@@ -142,6 +151,14 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
         return plankPackage;
     }
 
+    private void removeDraft(AssemblePlankPackageDTO dto) {
+        UpdateWrapper<AssemblePlankPackage> wrapper = new UpdateWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        wrapper.eq("`number`",dto.getNumber());
+        remove(wrapper);
+    }
+
     private void checkDraft(AssemblePlankPackageDTO dto) {
         QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
         wrapper.eq("submitId",dto.getSubmitId());
@@ -161,6 +178,13 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
         if (checkPackage==null || checkPackage.getDraft()==1){
             throw new BusinessException(ResException.QUERY_MISS);
         }
+        WorkOrder workOrder = workOrderService.getByNumber(checkPackage.getNumber());
+        if (workOrder==null){
+            throw new BusinessException(ResException.QUERY_MISS.getCode(),"工单信息有误");
+        }
+        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_WORK_ASSEMBLE)){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"工单环节异常");
+        }
         checkPackage.setVerifyStatus(status);
         checkPackage.setVerifyId(userId);
         checkPackage.setVerifyRemark(remark);
@@ -170,6 +194,10 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
 
         if (status==1){
             removeByNumber(checkPackage.getNumber(),checkPackage.getId());
+            workOrder.setTableType(AssembleTableTypeModel.TYPE_PACKAGE);
+            workOrder.setTableTypeStatus(0);
+            workOrderService.updateById(workOrder);
+/*            userTableProjectService.linkChange(DeptTypeModel.DEPT_WORK_ASSEMBLE,AssembleTableTypeModel.TYPE_PLANK,checkPackage.getNumber());*/
         }
 
         return checkPackage;
@@ -180,6 +208,8 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
 
         AssemblePlankPackageDTO dto = new AssemblePlankPackageDTO();
         dto.setNumber(nummber);
+
+        checkSubmit(nummber);
 
         WorkOrder workOrder = workOrderService.getUnFinish(nummber);
         if (workOrder==null){
@@ -213,6 +243,7 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
                         SubmitComponentOptionDTO submitDTO = new SubmitComponentOptionDTO();
                         submitDTO.setOptionId(optionDTO.getId());
                         submitDTO.setType(optionDTO.getType());
+                        submitDTO.setMust(optionDTO.getMust());
 
                         if (!CollectionUtils.isEmpty(finalSubmitComponentOptions) && finalSubmitComponentOptions.size() > 0) {
                             for (SubmitComponentOption option : finalSubmitComponentOptions) {
@@ -222,6 +253,7 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
                             }
                         }
                         submitDTO.setNumber(optionDTO.getNumber());
+                        submitDTO.setMust(optionDTO.getMust());
                         submitDTO.setCheckDetail(optionDTO.getDetail());
                         submitDTO.setNeeds(optionDTO.getNeeds());
                         return submitDTO;
@@ -237,6 +269,206 @@ public class AssemblePlankPackageServiceImpl extends ServiceImpl<AssemblePlankPa
 
         return dto;
 
+    }
+
+    private void checkSubmit(String number) {
+        QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("`number`",number);
+        List<AssemblePlankPackage> list = list(wrapper);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+            for (AssemblePlankPackage alloyPackage : list) {
+                if (alloyPackage.getDraft()==0 && alloyPackage.getVerifyStatus()!=2){
+                    throw new BusinessException(ResException.MAKE_ERR.getCode(),"工单已提交");
+                }
+            }
+        }
+    }
+
+    @Override
+    public List<AssemblePlankPackage> listFilter(AssemblePlankPackageDTO dto, Filter filter) {
+        QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
+        addFilter(wrapper,dto,filter);
+        return list(wrapper);
+    }
+
+    @Override
+    public List<AssemblePlankPackageDTO> listByFilter(AssemblePlankPackageDTO dto, Filter filter) {
+        List<AssemblePlankPackage> list = listFilter(dto, filter);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+           return listDTO(list);
+        }
+        return null;
+    }
+
+    private List<AssemblePlankPackageDTO> listDTO(List<AssemblePlankPackage> list) {
+        List<AssemblePlankPackageDTO> dtos = BeanUtils.copyAs(list, AssemblePlankPackageDTO.class);
+        //TODO
+        List<User> users = (List<User>) userService.listByIds(list.stream().map(AssemblePlankPackage::getSubmitId).distinct().collect(Collectors.toList()));
+        List<User> admins = new ArrayList<>();
+        List<AssemblePlankPackage> verifys = list.stream().filter(checkPackage -> checkPackage.getVerifyId() != null).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(verifys) && verifys.size()>0){
+            admins = (List<User>) userService.listByIds(verifys.stream().map(AssemblePlankPackage::getVerifyId).distinct().collect(Collectors.toList()));
+        }
+
+        for (AssemblePlankPackageDTO dto : dtos) {
+            if (!CollectionUtils.isEmpty(users) && users.size()>0){
+                for (User user : users) {
+                    if (user.getId().equals(dto.getSubmitId())){
+                        dto.setSubmitName(user.getName());
+                    }
+                }
+            }
+            if (!CollectionUtils.isEmpty(admins) && admins.size()>0){
+                for (User admin : admins) {
+                    if (dto.getVerifyId()!=null && dto.getVerifyId().equals(admin.getId())){
+                        dto.setVerifyName(admin.getName());
+                    }
+                }
+            }
+        }
+
+        return dtos;
+    }
+
+    @Override
+    public BigInteger listCount(AssemblePlankPackageDTO dto, Filter filter) {
+        QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
+        if (filter!=null){
+            filter.setPage(null);
+            filter.setPageSize(null);
+        }
+        addFilter(wrapper,dto,filter);
+        return BigInteger.valueOf(baseMapper.selectCount(wrapper));
+    }
+
+    @Override
+    public AssemblePlankPackageDTO getDetail(Integer id) {
+        AssemblePlankPackage plankPackage = getById(id);
+        if (plankPackage==null){
+            throw new BusinessException(ResException.QUERY_MISS);
+        }
+
+        return getDTO(plankPackage);
+    }
+
+    @Override
+    public AssemblePlankPackageDTO getAlloyDetailByNumber(String number, Integer userId) {
+        QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("`number`",number);
+        wrapper.eq("submitId",userId);
+        AssemblePlankPackage alloyPackage = getOne(wrapper);
+        if (alloyPackage==null){
+            throw new BusinessException(ResException.QUERY_MISS);
+        }
+        return getDTO(alloyPackage);
+    }
+
+    @Override
+    public AssemblePlankPackage getByNumber(String number) {
+        QueryWrapper<AssemblePlankPackage> wrapper = new QueryWrapper<>();
+        wrapper.eq("`number`",number);
+        wrapper.eq("`draft`",0);
+        wrapper.ne("`verifyStatus`",2);
+        return getOne(wrapper);
+    }
+
+    private AssemblePlankPackageDTO getDTO(AssemblePlankPackage plankPackage) {
+        AssemblePlankPackageDTO dto = BeanUtils.copyAs(plankPackage, AssemblePlankPackageDTO.class);
+
+        User user = userService.getById(dto.getSubmitId());
+        if (user!=null){
+            dto.setSubmitName(user.getName());
+        }
+        if (dto.getVerifyId()!=null){
+            User admin = userService.getById(dto.getVerifyId());
+            if (admin!=null){
+                dto.setVerifyName(admin.getName());
+            }
+        }
+
+        AssembleComponentDTO assembleComponentDTO = new AssembleComponentDTO();
+        assembleComponentDTO.setCheckType(AssembleTableTypeModel.TYPE_PACKAGE);
+        assembleComponentDTO.setStatus(0);
+        List<AssembleComponentDTO> assembleComponentDTOS = assembleComponentService.listByFilter(assembleComponentDTO,new Filter());
+        if (!CollectionUtils.isEmpty(assembleComponentDTOS) && assembleComponentDTOS.size()>0){
+
+            List<SubmitComponentOption> submitComponentOptions = new ArrayList<>();
+            if (dto.getId()!=null){
+                SubmitComponentOptionDTO submitComponentOptionDTO = new SubmitComponentOptionDTO();
+                submitComponentOptionDTO.setCheckTableId(dto.getId());
+                submitComponentOptions = submitComponentOptionService.listFilter(submitComponentOptionDTO,new Filter());
+            }
+
+            for (AssembleComponentDTO componentDTO : assembleComponentDTOS) {
+                List<ComponentOptionDTO> componentOptions = componentDTO.getComponentOptions();
+                if (!CollectionUtils.isEmpty(componentOptions) && componentOptions.size()>0){
+                    List<SubmitComponentOption> finalSubmitComponentOptions = submitComponentOptions;
+
+                    List<SubmitComponentOptionDTO> dtoList = componentOptions.stream().map(optionDTO -> {
+                        SubmitComponentOptionDTO submitDTO = new SubmitComponentOptionDTO();
+                        submitDTO.setOptionId(optionDTO.getId());
+                        submitDTO.setType(optionDTO.getType());
+                        submitDTO.setMust(optionDTO.getMust());
+
+                        if (!CollectionUtils.isEmpty(finalSubmitComponentOptions) && finalSubmitComponentOptions.size() > 0) {
+                            for (SubmitComponentOption option : finalSubmitComponentOptions) {
+                                if (option.getOptionId().equals(submitDTO.getOptionId())) {
+                                    submitDTO = BeanUtils.copyAs(option, SubmitComponentOptionDTO.class);
+                                }
+                            }
+                        }
+                        submitDTO.setNumber(optionDTO.getNumber());
+                        submitDTO.setMust(optionDTO.getMust());
+                        submitDTO.setCheckDetail(optionDTO.getDetail());
+                        submitDTO.setNeeds(optionDTO.getNeeds());
+                        return submitDTO;
+                    }).collect(Collectors.toList());
+
+                    componentDTO.setSubmitOptions(dtoList);
+                    componentDTO.setComponentOptions(null);
+                }
+            }
+            dto.setComponents(assembleComponentDTOS);
+        }
+
+        return dto;
+    }
+
+    private void addFilter(QueryWrapper<AssemblePlankPackage> wrapper, AssemblePlankPackageDTO dto, Filter filter) {
+        if (dto!=null){
+            if (dto.getDraft()!=null){
+                wrapper.eq("`draft`",dto.getDraft());
+            }
+            if (dto.getVerifyStatus()!=null){
+                wrapper.eq("verifyStatus",dto.getVerifyStatus());
+            }
+            if (dto.getStatus()!=null){
+                wrapper.eq("`Status`",dto.getStatus());
+            }
+            if (!StringUtils.isEmpty(dto.getNumber()) && dto.getNumber().length()>0){
+                wrapper.eq("`number`",dto.getNumber());
+            }
+            if (dto.getSubmit()!=null){
+                wrapper.ne("verifyStatus",2);
+            }
+        }
+        if (filter!=null){
+            if (filter.getCreateTimeBegin()!=null){
+                wrapper.ge("createTime",filter.getCreateTimeBegin());
+            }
+            if (filter.getCreateTimeEnd()!=null){
+                wrapper.le("createTime",filter.getCreateTimeEnd());
+            }
+            if (!StringUtils.isEmpty(filter.getOrders()) && filter.getOrders().length()>0){
+                if (filter.getOrderBy()!=null){
+                    wrapper.orderBy(true,filter.getOrderBy(),filter.getOrders());
+                }
+            }
+            if (filter.getPage()!=null && filter.getPageSize()!=null && filter.getPage()!=0 && filter.getPageSize()!=0){
+                int fast = filter.getPage()<=1?0:(filter.getPage()-1)*filter.getPageSize();
+                wrapper.last(" limit "+fast+", "+filter.getPageSize());
+            }
+        }
     }
 
     private AssemblePlankPackage getDraft(Integer userId) {

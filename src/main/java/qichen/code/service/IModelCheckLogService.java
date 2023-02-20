@@ -1,8 +1,13 @@
 package qichen.code.service;
 
+import org.springframework.web.bind.annotation.RequestParam;
 import qichen.code.entity.ModelCheckLog;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.ModelCheckLogDTO;
+import qichen.code.model.Filter;
+
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  * <p>
@@ -19,4 +24,16 @@ public interface IModelCheckLogService extends IService<ModelCheckLog> {
     ModelCheckLogDTO getWorkOrderModel(Integer userId, String number);
 
     ModelCheckLogDTO getVerify(String number);
+
+    List<ModelCheckLog> listFilter(ModelCheckLogDTO checkLogDTO, Filter filter);
+
+    ModelCheckLogDTO getDetail(Integer id);
+
+    List<ModelCheckLogDTO> listByFilter(ModelCheckLogDTO dto, Filter filter);
+
+    BigInteger listCount(ModelCheckLogDTO dto, Filter filter);
+
+    ModelCheckLog verifyWorkOrder(Integer userId, Integer id, Integer status, String verifyRemark);
+
+    ModelCheckLog getByNumber(String number);
 }

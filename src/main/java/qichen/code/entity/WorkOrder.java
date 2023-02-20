@@ -207,4 +207,13 @@ private static final long serialVersionUID=1L;
 
     @TableField("customMobile")
     private String customMobile;
+
+    @TableField("tecFileName")
+    private String tecFileName;
+
+    @TableField("tableType")
+    private Integer tableType;
+
+    @TableField("tableTypeStatus")
+    private Integer tableTypeStatus;
 }

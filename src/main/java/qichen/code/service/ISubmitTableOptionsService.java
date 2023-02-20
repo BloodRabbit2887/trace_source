@@ -19,6 +19,8 @@ public interface ISubmitTableOptionsService extends IService<SubmitTableOptions>
 
     void removeByOptionId(Integer optionId);
 
+    List<SubmitTableOptionDTO> listByFilter(SubmitTableOptionDTO optionDTO, Filter filter);
+
     List<SubmitTableOptions> listFilter(SubmitTableOptionDTO optionDTO, Filter filter);
 
     List<SubmitTableOptionDTO> listDTO(List<SubmitTableOptions> list);

@@ -2,16 +2,14 @@ package qichen.code.service.impl;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import qichen.code.entity.DeviseOrder;
-import qichen.code.entity.SubmitTableOptions;
-import qichen.code.entity.User;
-import qichen.code.entity.WorkOrder;
+import qichen.code.entity.*;
 import qichen.code.entity.dto.DeviseOrderDTO;
 import qichen.code.entity.dto.SubmitTableOptionDTO;
 import qichen.code.entity.dto.TableOptionDTO;
@@ -20,16 +18,16 @@ import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.DeviseOrderMapper;
 import qichen.code.model.DeptTypeModel;
+import qichen.code.model.Filter;
+import qichen.code.model.TableTypeModel;
 import qichen.code.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.math.BigInteger;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -51,12 +49,19 @@ public class DeviseOrderServiceImpl extends ServiceImpl<DeviseOrderMapper, Devis
     private ISubmitTableOptionsService submitTableOptionsService;
     @Autowired
     private IUserService userService;
+    @Autowired
+    private IAdminService adminService;
+    @Autowired
+    private IUserTableProjectService userTableProjectService;
 
     @Transactional
     @Override
     public DeviseOrder createWorkOrder(DeviseOrderDTO dto) {
 
-        checkDraft(dto);
+/*        checkDraft(dto);*/
+        if (dto.getId()==null){
+            removeDraft(dto);
+        }
 
         checkAlready(dto.getNumber());//同时只存在一张工单
 
@@ -86,6 +91,8 @@ public class DeviseOrderServiceImpl extends ServiceImpl<DeviseOrderMapper, Devis
             params.put("img2","产品图列表");
             params.put("submitId","创建人");
             JsonUtils.checkColumnNull(params, JSONObject.parseObject(JSON.toJSONString(dto)));
+
+            userTableProjectService.updateStatus(dto.getNumber(),dto.getSubmitId(),1, TableTypeModel.TABLE_ONE);
         }
 
         check(dto);
@@ -117,11 +124,15 @@ public class DeviseOrderServiceImpl extends ServiceImpl<DeviseOrderMapper, Devis
             }
         }
 
-        //TODO  正式删除
-        workOrder.setDeptId(DeptTypeModel.DEPT_DESIGN);
-        workOrderService.updateById(workOrder);
-
         return order;
+    }
+
+    private void removeDraft(DeviseOrderDTO dto) {
+        UpdateWrapper<DeviseOrder> wrapper = new UpdateWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        wrapper.eq("`number`",dto.getNumber());
+        remove(wrapper);
     }
 
     private void checkDraft(DeviseOrderDTO dto) {
@@ -243,6 +254,8 @@ public class DeviseOrderServiceImpl extends ServiceImpl<DeviseOrderMapper, Devis
             dto.setSubmitOptions(submitTableOptionsService.listDTO(list));
         }
 
+
+
         return dto;
     }
 
@@ -259,6 +272,112 @@ public class DeviseOrderServiceImpl extends ServiceImpl<DeviseOrderMapper, Devis
             return null;
         }
         return getDTO(deviseOrder);
+    }
+
+    @Override
+    public List<DeviseOrderDTO> listByFilter(DeviseOrderDTO dto, Filter filter) {
+        List<DeviseOrder> list = listFilter(dto,filter);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+           return listDTO(list);
+        }
+        return null;
+    }
+
+    @Override
+    public List<DeviseOrder> listFilter(DeviseOrderDTO dto, Filter filter) {
+        QueryWrapper<DeviseOrder> wrapper = new QueryWrapper<>();
+        addFilter(wrapper,dto,filter);
+        return list(wrapper);
+    }
+
+    private void addFilter(QueryWrapper<DeviseOrder> wrapper, DeviseOrderDTO dto, Filter filter) {
+        if (dto!=null){
+            if (dto.getStatus()!=null){
+                wrapper.eq("`Status`",dto.getStatus());
+            }
+            if (dto.getVerifyStatus()!=null){
+                wrapper.eq("verifyStatus",dto.getVerifyStatus());
+            }
+            if (dto.getDraft()!=null){
+                wrapper.eq("`draft`",dto.getDraft());
+            }
+            if (!StringUtils.isEmpty(dto.getNumber()) && dto.getNumber().length()>0){
+                wrapper.eq("`number`",dto.getNumber());
+            }
+            if (dto.getSubmit()!=null){
+                wrapper.ne("verifyStatus",2);
+            }
+        }
+        if (filter!=null){
+            if (filter.getCreateTimeBegin()!=null){
+                wrapper.ge("createTime",filter.getCreateTimeBegin());
+            }
+            if (filter.getCreateTimeEnd()!=null){
+                wrapper.le("createTime",filter.getCreateTimeEnd());
+            }
+            if (!StringUtils.isEmpty(filter.getKeyword()) && filter.getKeyword().length()>0){
+                wrapper.like("`number`",filter.getKeyword());
+            }
+            if (!StringUtils.isEmpty(filter.getOrders()) && filter.getOrders().length()>0){
+                if (filter.getOrderBy()!=null){
+                    wrapper.orderBy(true,filter.getOrderBy(),filter.getOrders());
+                }
+            }
+            if (filter.getPage()!=null && filter.getPageSize()!=null && filter.getPage()!=0 && filter.getPageSize()!=0){
+                int fast = filter.getPage()<=1?0:(filter.getPage()-1)*filter.getPageSize();
+                wrapper.last(" limit "+fast+", "+filter.getPageSize());
+            }
+        }
+    }
+
+    private List<DeviseOrderDTO> listDTO(List<DeviseOrder> list) {
+        List<DeviseOrderDTO> dtos = BeanUtils.copyAs(list, DeviseOrderDTO.class);
+
+        List<User> users = (List<User>) userService.listByIds(dtos.stream().map(DeviseOrderDTO::getSubmitId).distinct().collect(Collectors.toList()));
+        List<Admin> admins = new ArrayList<>();
+        List<DeviseOrder> verifys = list.stream().filter(deviseOrder -> deviseOrder.getVerifyId() != null).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(verifys) && verifys.size()>0){
+            admins = (List<Admin>) adminService.listByIds(verifys.stream().map(DeviseOrder::getVerifyId).distinct().collect(Collectors.toList()));
+        }
+
+        for (DeviseOrderDTO dto : dtos) {
+            if (!CollectionUtils.isEmpty(users) && users.size()>0){
+                for (User user : users) {
+                    if (user.getId().equals(dto.getSubmitId())){
+                        dto.setSubmitName(user.getName());
+                    }
+                }
+            }
+            if (!CollectionUtils.isEmpty(admins) && admins.size()>0){
+                for (Admin admin : admins) {
+                    if (admin.getId().equals(dto.getVerifyId())){
+                        dto.setVerifyName(admin.getAdminName());
+                    }
+                }
+            }
+        }
+
+        return dtos;
+    }
+
+    @Override
+    public BigInteger listCount(DeviseOrderDTO dto, Filter filter) {
+        QueryWrapper<DeviseOrder> wrapper = new QueryWrapper<>();
+        if (filter!=null){
+            filter.setPage(null);
+            filter.setPageSize(null);
+        }
+        addFilter(wrapper,dto,filter);
+        return BigInteger.valueOf(baseMapper.selectCount(wrapper));
+    }
+
+    @Override
+    public DeviseOrderDTO getDetail(Integer id) {
+        DeviseOrder order = getById(id);
+        if (order==null){
+            throw new BusinessException(ResException.QUERY_MISS);
+        }
+        return getDTO(order);
     }
 
     private DeviseOrderDTO getDTO(DeviseOrder deviseOrder) {

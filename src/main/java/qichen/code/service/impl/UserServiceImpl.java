@@ -9,10 +9,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import qichen.code.entity.*;
+import qichen.code.entity.dto.DeptRoleDTO;
 import qichen.code.entity.dto.UserDTO;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.UserMapper;
+import qichen.code.model.DeptTypeModel;
 import qichen.code.model.Filter;
 import qichen.code.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -49,7 +51,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     private IUserTokenService userTokenService;
     @Autowired
     private IDeptService deptService;
-
+    @Autowired
+    private IDeptRoleService deptRoleService;
 
 
     @Transactional
@@ -71,8 +74,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         if (userDTO.getDeptId()==null){
             throw new BusinessException(ResException.MAKE_ERR.getCode(),"部门信息不能为空");
         }
-
         check(userDTO);
+
+        DeptRole deptRole = deptRoleService.getByAdd(userDTO.getDeptId(),userDTO.getDeptRoleId());
+        userDTO.setDeptRoleId(deptRole.getId());
 
         User user = BeanUtils.copyAs(userDTO, User.class);
 
@@ -136,8 +141,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         Map<String,Object> res = new HashMap<>();
-        String tokenId = refresh(user);
-        res.put("tokenId",tokenId);
+        UserDTO dto = refresh(user);
+        res.put("tokenId",dto.getToken());
+        res.put("deptRoleName",dto.getDeptRoleName());
+        res.put("deptRoleLevel",dto.getDeptRoleLevel());
+        res.put("createAllOrderPermission",dto.getCreateAllOrderPermission());
+        res.put("distributionPermission",dto.getDistributionPermission());
+        res.put("verifyPermission",dto.getVerifyPermission());
+        res.put("linkChangePermission",dto.getLinkChangePermission());
+        res.put("updatePermission",dto.getUpdatePermission());
 
         offLine(user.getId());
 
@@ -149,6 +161,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         res.put("name",user.getName());
         res.put("userId",user.getId());
         res.put("deptId",user.getDeptId());
+        res.put("type",user.getType());
+        res.put("typeName",user.getType()==0?"普通员工":"部门主管");
         if (user.getAssembleTableType()!=null){
             res.put("assembleTableType",user.getAssembleTableType());
         }
@@ -195,6 +209,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             dto.setDeptName(dept.getTitle());
         }
 
+        DeptRole role = deptRoleService.getById(user.getDeptRoleId());
+        if (role!=null){
+            dto.setDeptRoleName(role.getName());
+        }
+
         dto.setTypeName(dto.getType()==1?"部门主管":"职工");
 
         return dto;
@@ -213,8 +232,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public List<UserDTO> listDTO(List<User> list) {
         List<UserDTO> dtos = BeanUtils.copyAs(list, UserDTO.class);
 
-        List<Integer> userIds = list.stream().map(User::getId).distinct().collect(Collectors.toList());
-
         for (UserDTO dto : dtos) {
             dto.setDeptName("暂无信息");
             dto.setTypeName(dto.getType()==1?"部门主管":"职工");
@@ -222,15 +239,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
 
         //部门
         List<Dept> depts = (List<Dept>) deptService.listByIds(list.stream().map(User::getDeptId).distinct().collect(Collectors.toList()));
-        if (!CollectionUtils.isEmpty(depts) && depts.size()>0){
-            for (Dept dept : depts) {
-                for (UserDTO dto : dtos) {
+        List<DeptRole> roles = (List<DeptRole>) deptRoleService.listByIds(list.stream().map(User::getDeptRoleId).distinct().collect(Collectors.toList()));
+
+
+        for (UserDTO dto : dtos) {
+            if (!CollectionUtils.isEmpty(depts) && depts.size()>0){
+                for (Dept dept : depts) {
                     if (dto.getDeptId().equals(dept.getId())){
                         dto.setDeptName(dept.getTitle());
                     }
                 }
             }
+            if (!CollectionUtils.isEmpty(roles) && roles.size()>0){
+                for (DeptRole role : roles) {
+                    if (role.getId().equals(dto.getDeptRoleId())){
+                        dto.setDeptRoleName(role.getName());
+                    }
+                }
+            }
         }
+
 
         return dtos;
     }
@@ -322,6 +350,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
 
         check(userDTO);
+
+        if (userDTO.getDeptRoleId()!=null){
+            DeptRole deptRole = deptRoleService.getByAdd(userDTO.getDeptId(),userDTO.getDeptRoleId());
+            userDTO.setDeptRoleId(deptRole.getId());
+        }
+
         if (!StringUtils.isEmpty(userDTO.getPass()) && userDTO.getPass().length()>0){
             String pass = HashUtils.getMd5((userDTO.getPass()+user.getSaltValue()).getBytes());
             userDTO.setPass(pass);
@@ -332,7 +366,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         List<Integer> userIds = new ArrayList<>();
         userIds.add(user.getId());
         refushUsersByUpdate(userIds);
-
 
         return user;
     }
@@ -411,8 +444,38 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         refushUsersByUpdate(userIds);
     }
 
+    @Override
+    public void cleanDeptRoleByRoleId(Integer roleId) {
+        UpdateWrapper<User> wrapper = new UpdateWrapper<>();
+        wrapper.eq("deptRoleId",roleId);
+        wrapper.set("deptRoleId",0);
+        update(wrapper);
+    }
 
-    private String refresh(User user) {
+/*    @Override
+    public Integer getMaxDeptUserId(Integer deptId) {
+
+        UserDTO userDTO = new UserDTO();
+        userDTO.setDeptId(deptId);
+        userDTO.setStatus(0);
+        List<User> users = listFilter(userDTO, null);
+        if (CollectionUtils.isEmpty(users) || users.size()==0){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(), DeptTypeModel.TYPE_MAP.get(deptId)+"暂无员工");
+        }
+
+        DeptRoleDTO deptRoleDTO = new DeptRoleDTO();
+        deptRoleDTO.setDeptId(deptId);
+        List<DeptRole> list = deptRoleService.listFilter(deptRoleDTO, null);
+        list = list.stream().filter(deptRole->deptRole.getCreateAllOrderPermission()==1 && deptRole.getDistributionPermission()==1 && deptRole.getVerifyPermission()==1).collect(Collectors.toList());
+
+        if (CollectionUtils.isEmpty(list) || list.size()==0){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"当前部门权限未完善,请联系管理员");
+        }
+        list.
+    }*/
+
+
+    private UserDTO refresh(User user) {
         userTokenService.removeByUserId(user.getId());
         user.setAccount(null);
         user.setPass(null);
@@ -424,8 +487,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         Parameter expireTimeStr = parameterService.methodGetParameterByParamName("user.login.expire.time", null, Byte.valueOf("1"));
         userToken.setExpireTime(userToken.getCreateTime().plusSeconds(Long.parseLong(expireTimeStr.getParamValue())));
         userTokenService.save(userToken);
-        redisTemplate.opsForValue().set(tokenId, JSON.toJSONString(BeanUtils.copyAs(user,UserDTO.class)),Long.parseLong(expireTimeStr.getParamValue()), TimeUnit.SECONDS);
-        return tokenId;
+
+        UserDTO dto = BeanUtils.copyAs(user, UserDTO.class);
+
+
+        DeptRoleDTO roleDTO = deptRoleService.getDetail(user.getDeptRoleId());
+        if (roleDTO!=null){
+            dto.setDeptRoleName(roleDTO.getName());
+            dto.setDeptRoleLevel(roleDTO.getLevel());
+            dto.setCreateAllOrderPermission(roleDTO.getCreateAllOrderPermission());
+            dto.setDistributionPermission(roleDTO.getDistributionPermission());
+            dto.setVerifyPermission(roleDTO.getVerifyPermission());
+            dto.setLinkChangePermission(roleDTO.getLinkChangePermission());
+            dto.setUpdatePermission(roleDTO.getUpdatePermission());
+        }
+
+        dto.setToken(tokenId);
+
+        redisTemplate.opsForValue().set(tokenId, JSON.toJSONString(dto),Long.parseLong(expireTimeStr.getParamValue()), TimeUnit.SECONDS);
+        return dto;
     }
 
     private void check(UserDTO userDTO) {
@@ -447,6 +527,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
                 throw new BusinessException(ResException.MAKE_ERR.getCode(),"账号已被使用");
             }
         }
+
+
+
 
     }
 }

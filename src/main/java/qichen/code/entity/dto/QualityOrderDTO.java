@@ -15,4 +15,8 @@ public class QualityOrderDTO extends QualityOrder {
     private ModelCheckLogDTO modelCheckLog;//模具检测报告(质量管理部)
     private SparePartsLogDTO sparePartsLog;//零件检测报告(质量管理部)
 
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

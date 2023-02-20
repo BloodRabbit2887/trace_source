@@ -11,4 +11,9 @@ import java.util.List;
 public class AssembleDownPackageDTO extends AssembleDownPackage {
 
     private List<AssembleComponentDTO> components;
+
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

@@ -12,4 +12,9 @@ public class AssembleModelPushPackageDTO extends AssembleModelPushPackage {
 
     private List<ModelPushOptionDTO> modelPushOptions;
     private List<SubmitModelPushOptionDTO> submitOptions;
+
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

@@ -44,8 +44,7 @@ public class AdminErrModelController {
 
     @ResponseBody
     @GetMapping("/query")
-    public ResponseBean query(HttpServletRequest request,
-                              @RequestParam(value = "status", required = false) Integer status,
+    public ResponseBean query(@RequestParam(value = "status", required = false) Integer status,
                               @RequestParam(value = "typeId", required = false) Integer typeId,
                               @RequestParam(value = "verifyStatus",required = false) Integer verifyStatus,
                               @RequestParam(value = "page", defaultValue = "1") Integer page,
@@ -90,7 +89,6 @@ public class AdminErrModelController {
     @GetMapping("/detail")
     public ResponseBean detail(@RequestParam(value = "id") Integer id){
         try {
-
             ErrModelDTO dto = errModelService.getDetail(id);
             return new ResponseBean(dto);
         }catch (BusinessException exception){
@@ -107,7 +105,7 @@ public class AdminErrModelController {
     public ResponseBean verify(HttpServletRequest request,
                                @RequestParam(value = "id") Integer id,
                                @RequestParam(value = "status") Integer status,
-                               @RequestParam(value = "remark") String remark){
+                               @RequestParam(value = "remark",required = false) String remark){
         AdminDTO admin = userContextUtils.newGetCurrentAdmin(request);
         if (admin == null) {
             return new ResponseBean(ResException.ADMIN_LOGIN_MISS);
@@ -215,7 +213,7 @@ public class AdminErrModelController {
 
 
     @ResponseBody
-    @GetMapping("/type/add")
+    @PostMapping("/type/add")
     public ResponseBean typeAdd(HttpServletRequest request,@RequestBody ErrTypeDTO typeDTO){
         AdminDTO admin = userContextUtils.newGetCurrentAdmin(request);
         if (admin == null) {
@@ -238,7 +236,7 @@ public class AdminErrModelController {
     }
 
     @ResponseBody
-    @GetMapping("/type/update")
+    @PostMapping("/type/update")
     public ResponseBean typeUpdate(HttpServletRequest request,@RequestBody ErrTypeDTO typeDTO){
         AdminDTO admin = userContextUtils.newGetCurrentAdmin(request);
         if (admin == null) {
@@ -261,7 +259,7 @@ public class AdminErrModelController {
     }
 
     @ResponseBody
-    @GetMapping("/type/delete")
+    @PostMapping("/type/delete")
     public ResponseBean typeDelete(HttpServletRequest request,@RequestParam(value = "id") Integer id){
         AdminDTO admin = userContextUtils.newGetCurrentAdmin(request);
         if (admin == null) {

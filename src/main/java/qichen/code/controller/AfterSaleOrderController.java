@@ -90,8 +90,8 @@ public class AfterSaleOrderController {
             dto.setSubmitType(2);
 
             //TODO 正式删除
-            dto.setVerifyStatus(1);
-            dto.setVerifyId(2);
+/*            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);*/
 
             AfterSaleOrder afterSaleOrder = afterSaleOrderService.createWorkOrder(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "创建【维修工单】", "t_after_sale_order", afterSaleOrder.getId(), JSON.toJSONString(afterSaleOrder));
@@ -151,8 +151,8 @@ public class AfterSaleOrderController {
             dto.setSubmitId(user.getId());
 
             //TODO 正式删除
-            dto.setVerifyStatus(1);
-            dto.setVerifyId(2);
+/*            dto.setVerifyStatus(1);
+            dto.setVerifyId(2);*/
 
             ModelInstall modelInstall = modelInstallService.createWorkOrder(dto);
             operationLogService.saveOperationLog(user.getType(), user.getId(), "410", "创建【模具安装调试服务报告单】", "t_model_install", modelInstall.getId(), JSON.toJSONString(modelInstall));

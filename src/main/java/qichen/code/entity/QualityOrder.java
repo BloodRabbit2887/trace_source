@@ -105,5 +105,8 @@ private static final long serialVersionUID=1L;
     @TableField("verifyTime")
     private LocalDateTime verifyTime;
 
+    @TableField("modelTitle")
+    private String modelTitle;
+
 
 }

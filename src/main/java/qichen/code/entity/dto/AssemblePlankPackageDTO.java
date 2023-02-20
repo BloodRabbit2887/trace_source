@@ -11,4 +11,8 @@ import java.util.List;
 public class AssemblePlankPackageDTO extends AssemblePlankPackage {
 
     private List<AssembleComponentDTO> components;
+
+    private String submitName;
+    private String verifyName;
+    private Integer submit;
 }

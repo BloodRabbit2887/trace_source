@@ -108,7 +108,7 @@ public class ErrTypeServiceImpl extends ServiceImpl<ErrTypeMapper, ErrType> impl
     @Override
     public ErrType add(ErrTypeDTO typeDTO) {
         Map<String,String> params = new HashMap<>();
-        params.put("`title`","名称");
+        params.put("title","名称");
         JsonUtils.checkColumnNull(params, JSONObject.parseObject(JSON.toJSONString(typeDTO)));
 
         check(typeDTO);
@@ -126,6 +126,7 @@ public class ErrTypeServiceImpl extends ServiceImpl<ErrTypeMapper, ErrType> impl
         if (errType==null){
             throw new BusinessException(ResException.QUERY_MISS);
         }
+        check(typeDTO);
         ErrType type = BeanUtils.copyAs(typeDTO, ErrType.class);
         updateById(type);
         return type;

@@ -14,4 +14,7 @@ public class AssembleCheckAlloyPackageDTO extends AssembleCheckAlloyPackage {
 
     private List<AssembleComponentDTO> components;
 
+    private String submitName;
+    private String verifyName;
+    private Integer submit;
 }

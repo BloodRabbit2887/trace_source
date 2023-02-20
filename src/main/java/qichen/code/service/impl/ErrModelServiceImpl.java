@@ -10,6 +10,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import qichen.code.entity.ErrModel;
 import qichen.code.entity.ErrType;
+import qichen.code.entity.User;
 import qichen.code.entity.dto.ErrModelDTO;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
@@ -19,6 +20,7 @@ import qichen.code.service.IErrModelService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import qichen.code.service.IErrTypeService;
+import qichen.code.service.IUserService;
 import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
@@ -42,6 +44,8 @@ public class ErrModelServiceImpl extends ServiceImpl<ErrModelMapper, ErrModel> i
 
     @Autowired
     private IErrTypeService errTypeService;
+    @Autowired
+    private IUserService userService;
 
     @Transactional
     @Override
@@ -83,12 +87,22 @@ public class ErrModelServiceImpl extends ServiceImpl<ErrModelMapper, ErrModel> i
         List<Integer> typeIds = dtos.stream().map(ErrModelDTO::getTypeId).distinct().collect(Collectors.toList());
         List<ErrType> errTypes = (List<ErrType>) errTypeService.listByIds(typeIds);
 
+
+        List<User> users = (List<User>) userService.listByIds(list.stream().map(ErrModel::getSubmitId).distinct().collect(Collectors.toList()));
+
         for (ErrModelDTO dto : dtos) {
             if (!CollectionUtils.isEmpty(errTypes) && errTypes.size()>0){
                 for (ErrType errType : errTypes) {
                     if (errType.getId().equals(dto.getTypeId())){
                         dto.setErrTypeName(errType.getTitle());
                         dto.setErrTypeRemark(errType.getRemark());
+                    }
+                }
+            }
+            if (!CollectionUtils.isEmpty(users) && users.size()>0){
+                for (User user : users) {
+                    if (user.getId().equals(dto.getSubmitId())){
+                        dto.setSubmitName(user.getName());
                     }
                 }
             }
@@ -111,6 +125,9 @@ public class ErrModelServiceImpl extends ServiceImpl<ErrModelMapper, ErrModel> i
             if (dto.getStatus()!=null){
                 wrapper.eq("`Status`",dto.getStatus());
             }
+            if (dto.getVerifyStatus()!=null){
+                wrapper.eq("verifyStatus",dto.getVerifyStatus());
+            }
         }
         if (filter!=null){
             if (filter.getCreateTimeBegin()!=null){
@@ -118,6 +135,9 @@ public class ErrModelServiceImpl extends ServiceImpl<ErrModelMapper, ErrModel> i
             }
             if (filter.getCreateTimeEnd()!=null){
                 wrapper.le("createTime",filter.getCreateTimeEnd());
+            }
+            if (!StringUtils.isEmpty(filter.getKeyword()) && filter.getKeyword().length()>0){
+                wrapper.like("`title`",filter.getKeyword());
             }
             if (!StringUtils.isEmpty(filter.getOrders()) && filter.getOrders().length()>0){
                 if (filter.getOrderBy()!=null){

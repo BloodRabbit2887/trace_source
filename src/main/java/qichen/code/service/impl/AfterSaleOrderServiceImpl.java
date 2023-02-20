@@ -3,15 +3,14 @@ package qichen.code.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import qichen.code.entity.AfterSaleOrder;
-import qichen.code.entity.DeviseOrder;
-import qichen.code.entity.Option;
-import qichen.code.entity.WorkOrder;
+import qichen.code.entity.*;
 import qichen.code.entity.dto.AfterSaleOrderDTO;
 import qichen.code.entity.dto.DeviseOrderDTO;
+import qichen.code.entity.dto.WorkOrderDTO;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.AfterSaleOrderMapper;
@@ -25,6 +24,7 @@ import qichen.code.service.IWorkOrderService;
 import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,19 +48,32 @@ public class AfterSaleOrderServiceImpl extends ServiceImpl<AfterSaleOrderMapper,
 
     @Override
     public AfterSaleOrderDTO getWorkOrderModel(Integer userId, String number) {
+
+        WorkOrderDTO workOrderDTO = new WorkOrderDTO();
+        workOrderDTO.setNumber(number);
+        workOrderDTO.setDraft(0);
+        workOrderDTO.setVerifyStatus(1);
+        BigInteger count = workOrderService.listCount(workOrderDTO, new Filter());
+        if (count.intValue()<=0){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"模号有误");
+        }
+
+
         AfterSaleOrderDTO dto = new AfterSaleOrderDTO();
-        AfterSaleOrder order = getDraft(userId);
+        dto.setNumber(number);
+        AfterSaleOrder order = getDraft(userId,number);
         if (order!=null){
             dto = BeanUtils.copyAs(order, AfterSaleOrderDTO.class);
         }
-        dto.setNumber(number);
         return dto;
     }
 
     @Override
     public AfterSaleOrder createWorkOrder(AfterSaleOrderDTO dto) {
-        checkDraft(dto);
-
+/*        checkDraft(dto);*/
+        if (dto.getId()==null){
+            removeDraft(dto);
+        }
 
         if (dto.getDraft()==null || dto.getDraft()==0){
             Map<String,String> params = new HashMap<>();
@@ -68,7 +81,7 @@ public class AfterSaleOrderServiceImpl extends ServiceImpl<AfterSaleOrderMapper,
             params.put("title","故障名称");
             params.put("detail","故障详情");
             params.put("views","故障照片/视频");
-            params.put("measure","维修措施");
+/*            params.put("measure","维修措施");*/
             params.put("submitId","创建人");
             JsonUtils.checkColumnNull(params, JSONObject.parseObject(JSON.toJSONString(dto)));
         }
@@ -77,16 +90,25 @@ public class AfterSaleOrderServiceImpl extends ServiceImpl<AfterSaleOrderMapper,
         saveOrUpdate(order);
 
         WorkOrder workOrder = workOrderService.getByNumber(dto.getNumber());
-        if (workOrder!=null){
+/*        if (workOrder!=null){
             //TODO  正式删除
             workOrder.setDeptId(DeptTypeModel.DEPT_AFTER_SALE);
             workOrderService.updateById(workOrder);
-
-        }
-
+        }*/
 
         return order;
     }
+
+    private void removeDraft(AfterSaleOrderDTO dto) {
+        UpdateWrapper<AfterSaleOrder> wrapper = new UpdateWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        wrapper.eq("`number`",dto.getNumber());
+        remove(wrapper);
+    }
+
+
+
 
     @Override
     public List<AfterSaleOrderDTO> listByFilter(AfterSaleOrderDTO afterSaleOrderDTO, Filter filter) {
@@ -166,10 +188,11 @@ public class AfterSaleOrderServiceImpl extends ServiceImpl<AfterSaleOrderMapper,
         }
     }
 
-    private AfterSaleOrder getDraft(Integer userId) {
+    private AfterSaleOrder getDraft(Integer userId,String number) {
         QueryWrapper<AfterSaleOrder> wrapper = new QueryWrapper<>();
         wrapper.eq("submitId",userId);
         wrapper.eq("`draft`",1);
+        wrapper.eq("`number`",number);
         return getOne(wrapper);
     }
 

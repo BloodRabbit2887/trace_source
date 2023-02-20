@@ -47,6 +47,16 @@ public class SubmitTableOptionsServiceImpl extends ServiceImpl<SubmitTableOption
     }
 
     @Override
+    public List<SubmitTableOptionDTO> listByFilter(SubmitTableOptionDTO optionDTO, Filter filter) {
+        List<SubmitTableOptions> list = listFilter(optionDTO, filter);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+           return listDTO(list);
+        }
+        return null;
+    }
+
+
+    @Override
     public List<SubmitTableOptions> listFilter(SubmitTableOptionDTO optionDTO, Filter filter) {
         QueryWrapper<SubmitTableOptions> wrapper = new QueryWrapper<>();
         addFilter(wrapper,optionDTO,filter);

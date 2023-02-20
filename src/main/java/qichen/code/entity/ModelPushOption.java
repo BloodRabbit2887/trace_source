@@ -75,4 +75,7 @@ private static final long serialVersionUID=1L;
     private String remark;
 
 
+    @TableField("must")
+    private Integer must;
+
 }

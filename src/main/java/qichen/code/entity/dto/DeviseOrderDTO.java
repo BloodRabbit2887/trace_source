@@ -15,4 +15,7 @@ public class DeviseOrderDTO extends DeviseOrder {
     private List<SubmitTableOptionDTO> submitOptions;
 
     private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

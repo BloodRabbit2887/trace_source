@@ -11,4 +11,9 @@ import java.util.List;
 public class AssembleCheckPackageDTO extends AssembleCheckPackage {
 
     private List<AssembleComponentDTO> components;
+
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

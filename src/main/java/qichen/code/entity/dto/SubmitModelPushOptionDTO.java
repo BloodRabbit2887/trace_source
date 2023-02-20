@@ -7,5 +7,6 @@ import qichen.code.entity.SubmitModelPushOption;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class SubmitModelPushOptionDTO extends SubmitModelPushOption {
-
+    private Integer must;
+    private String title;
 }

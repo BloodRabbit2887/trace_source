@@ -64,6 +64,25 @@ public class SaleUserController {
 
 
     @ResponseBody
+    @GetMapping("/detail")
+    public ResponseBean detail(@RequestParam(value = "id") Integer id){
+        try {
+            WorkOrderDTO dto = workOrderService.getDetail(id,false);
+/*            if (dto!=null){
+                return new ResponseBean(workOrderService.changeToModel(dto));
+            }*/
+            return new ResponseBean(dto);
+        } catch (BusinessException exception) {
+            return new ResponseBean(exception);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+
+    @ResponseBody
     @GetMapping("/getOrderModel")
     public ResponseBean getOrderModel(HttpServletRequest request,@RequestParam(value = "number") String number){
         UserDTO user = userContextUtils.getCurrentUser(request);
@@ -89,6 +108,8 @@ public class SaleUserController {
     }
 
 
+
+
     @ResponseBody
     @PostMapping("/createWorkOrder")
     public ResponseBean createWorkOrder(HttpServletRequest request,
@@ -110,10 +131,9 @@ public class SaleUserController {
             workOrderDTO.setDeptStatus(1);
 
             //TODO 正式删除
-            workOrderDTO.setVerifyStatus(1);
+/*            workOrderDTO.setVerifyStatus(1);
             workOrderDTO.setVerifyId(2);
-            workOrderDTO.setVerifyType(1);
-
+            workOrderDTO.setVerifyType(1);*/
             workOrderService.createOrderBySale(workOrderDTO);
             return new ResponseBean();
         }catch (BusinessException exception){

@@ -17,13 +17,8 @@ import qichen.code.entity.dto.UserDTO;
 import qichen.code.entity.dto.WorkOrderDTO;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
-import qichen.code.model.DeptTypeModel;
-import qichen.code.model.Filter;
-import qichen.code.model.LinkModel;
-import qichen.code.model.ResponseBean;
-import qichen.code.service.IOperationLogService;
-import qichen.code.service.IParameterService;
-import qichen.code.service.IWorkOrderService;
+import qichen.code.model.*;
+import qichen.code.service.*;
 import qichen.code.utils.UserContextUtils;
 
 import javax.servlet.http.HttpServletRequest;
@@ -53,7 +48,77 @@ public class WorkOrderController {
     private IParameterService parameterService;
     @Autowired
     private IOperationLogService operationLogService;
+    @Autowired
+    private IUserTableProjectService userTableProjectService;
 
+    @ResponseBody
+    @GetMapping("/newNeeds")
+    public ResponseBean newNeeds(HttpServletRequest request,
+                                 @RequestParam(value = "tableType") Integer type,
+                                 @RequestParam(value = "page", defaultValue = "1") Integer page,
+                                 @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+                                 @RequestParam(value = "orders", defaultValue = "createTime") String orders,
+                                 @RequestParam(value = "orderBy", defaultValue = "false") Boolean orderBy){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        Filter filter = new Filter();
+        filter.setOrders(orders);
+        filter.setOrderBy(orderBy);
+        filter.setPage(page);
+        filter.setPageSize(pageSize);
+
+        try {
+            Map<String, Object> res =workOrderService.newListNeedOrders(user.getId(),type, filter);
+            return new ResponseBean(res);
+        } catch (BusinessException exception) {
+            return new ResponseBean(exception);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+
+
+    @ResponseBody
+    @GetMapping("/needs")
+    public ResponseBean needs(HttpServletRequest request,
+                              @RequestParam(value = "page", defaultValue = "1") Integer page,
+                              @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+                              @RequestParam(value = "orders", defaultValue = "createTime") String orders,
+                              @RequestParam(value = "orderBy", defaultValue = "false") Boolean orderBy){
+
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+
+        Filter filter = new Filter();
+        filter.setOrders(orders);
+        filter.setOrderBy(orderBy);
+        filter.setPage(page);
+        filter.setPageSize(pageSize);
+
+        try {
+            Map<String, Object> res =workOrderService.listNeedOrders(user.getId(), filter);
+            return new ResponseBean(res);
+        } catch (BusinessException exception) {
+            return new ResponseBean(exception);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
 
     @ResponseBody
     @GetMapping("/query")
@@ -123,9 +188,16 @@ public class WorkOrderController {
 
     @ResponseBody
     @GetMapping("/detail")
-    public ResponseBean detail(@RequestParam(value = "id") Integer id){
+    public ResponseBean detail(@RequestParam(value = "id",required = false) Integer id,
+                               @RequestParam(value = "number",required = false) String number){
         try {
-            WorkOrderDTO dto = workOrderService.getDetail(id,true);
+            WorkOrderDTO dto = new WorkOrderDTO();
+            if (id!=null){
+                dto = workOrderService.getDetail(id,true);
+            }else if (!StringUtils.isEmpty(number) && number.length()>0){
+                dto = workOrderService.getDetailByNumber(number,true);
+            }
+
             if (dto!=null){
                 return new ResponseBean(workOrderService.changeToModel(dto));
             }
@@ -201,7 +273,6 @@ public class WorkOrderController {
         List<LinkModel.Link> links = new ArrayList<>();
 
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-
 
         LinkModel.Link sale = new LinkModel.Link();
         sale.setOrders(1);
@@ -310,7 +381,8 @@ public class WorkOrderController {
     public ResponseBean linkChange(HttpServletRequest request,
                                    @RequestParam(value = "number") String number,
                                    @RequestParam(value = "status") Integer status,
-                                   @RequestParam(value = "remark",required = false) String remark){
+                                   @RequestParam(value = "remark",required = false) String remark,
+                                   @RequestParam(value = "toUserId",required = false) Integer toUserId){
         UserDTO user = userContextUtils.getCurrentUser(request);
         if (user==null){
             return new ResponseBean(ResException.USER_MISS);
@@ -318,11 +390,15 @@ public class WorkOrderController {
         if (user.getStatus()==1){
             return new ResponseBean(ResException.USER_LOCK);
         }
-        if (user.getType()!=1){
-            return new ResponseBean(new BusinessException(ResException.USER_PER_MISS.getCode(),"职工无环节推进权限,请联系部门主管"));
+        if (user.getLinkChangePermission()==0){
+            return new ResponseBean(ResException.USER_PER_MISS);
         }
+/*        if (user.getType()!=1){
+            return new ResponseBean(new BusinessException(ResException.USER_PER_MISS.getCode(),"职工无环节推进权限,请联系部门主管"));
+        }*/
         try {
             WorkOrder workOrder = workOrderService.linkChange(user.getId(),number,status,remark);
+/*            WorkOrder workOrder = workOrderService.newLinkChange(user.getId(),number,status,remark,toUserId);*/
             operationLogService.saveOperationLog(user.getType(),user.getId(),"410","工单环节推进【"+DeptTypeModel.TYPE_MAP.get(user.getDeptId())+"】","t_work_order",workOrder.getId(), JSON.toJSONString(workOrder));
             return new ResponseBean();
         }catch (BusinessException exception){
@@ -333,5 +409,94 @@ public class WorkOrderController {
             return new ResponseBean(ResException.SYSTEM_ERR);
         }
     }
+
+    @ResponseBody
+    @GetMapping("/queryTableTypes")
+    public ResponseBean queryTableTypes(HttpServletRequest request){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+/*        if (user.getDistributionPermission()==0){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }*/
+        try {
+            List<TableTypeDTO> list = workOrderService.queryTableTypes(user.getDeptId());
+            return new ResponseBean(list);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+    @ResponseBody
+    @GetMapping("/listDistributionProjects")
+    public ResponseBean listDistributionProjects(HttpServletRequest request,
+                                                 @RequestParam(value = "tableType") Integer tableType,
+                                                 @RequestParam(value = "status", required = false) Integer status,
+                                                 @RequestParam(value = "page", defaultValue = "1") Integer page,
+                                                 @RequestParam(value = "pageSize", defaultValue = "10") Integer pageSize,
+                                                 @RequestParam(value = "createTimeBegin", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date createTimeBegin,
+                                                 @RequestParam(value = "createTimeEnd", required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") Date createTimeEnd,
+                                                 @RequestParam(value = "orders", defaultValue = "createTime") String orders,
+                                                 @RequestParam(value = "orderBy", defaultValue = "false") Boolean orderBy){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        if (user.getDistributionPermission()==0){
+            return new ResponseBean(ResException.USER_PER_MISS);
+        }
+        try {
+            Filter filter = new Filter();
+            filter.setCreateTimeBegin(createTimeBegin);
+            filter.setCreateTimeEnd(createTimeEnd);
+            filter.setOrders(orders);
+            filter.setOrderBy(orderBy);
+            filter.setPage(page);
+            filter.setPageSize(pageSize);
+            Map<String,Object> res = workOrderService.listDistributionProjects(tableType,filter,user.getDeptId());
+            return new ResponseBean(res);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
+    @ResponseBody
+    @GetMapping("/getProjectByNumber")
+    public ResponseBean getProjectByNumber(HttpServletRequest request,
+                                           @RequestParam(value = "number") String number){
+        UserDTO user = userContextUtils.getCurrentUser(request);
+        if (user==null){
+            return new ResponseBean(ResException.USER_MISS);
+        }
+        if (user.getStatus()==1){
+            return new ResponseBean(ResException.USER_LOCK);
+        }
+        try {
+            AssembleProjectModel model = userTableProjectService.getProjectByNumber(user.getId(),user.getDeptId(),number);
+            return new ResponseBean(model);
+        }catch (BusinessException exception){
+            return new ResponseBean(exception);
+        }catch (Exception exception){
+            exception.printStackTrace();
+            log.error(exception.getMessage());
+            return new ResponseBean(ResException.SYSTEM_ERR);
+        }
+    }
+
 }
 

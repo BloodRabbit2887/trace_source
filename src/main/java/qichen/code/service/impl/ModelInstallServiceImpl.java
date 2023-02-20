@@ -3,11 +3,9 @@ package qichen.code.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import qichen.code.entity.AfterSaleOrder;
-import qichen.code.entity.DeviseOrder;
-import qichen.code.entity.ModelInstall;
-import qichen.code.entity.WorkOrder;
+import qichen.code.entity.*;
 import qichen.code.entity.dto.AfterSaleOrderDTO;
 import qichen.code.entity.dto.ModelInstallDTO;
 import qichen.code.exception.BusinessException;
@@ -44,7 +42,10 @@ public class ModelInstallServiceImpl extends ServiceImpl<ModelInstallMapper, Mod
 
         checkAlready(dto.getNumber());
 
-        checkDraft(dto);
+/*        checkDraft(dto);*/
+        if (dto.getId()==null){
+            removeDraft(dto);
+        }
 
         WorkOrder workOrder = workOrderService.getUnFinish(dto.getNumber());
         if (workOrder==null){
@@ -63,10 +64,18 @@ public class ModelInstallServiceImpl extends ServiceImpl<ModelInstallMapper, Mod
 
 
         //TODO  正式删除
-        workOrder.setDeptId(DeptTypeModel.DEPT_AFTER_SALE);
-        workOrderService.updateById(workOrder);
+/*        workOrder.setDeptId(DeptTypeModel.DEPT_AFTER_SALE);
+        workOrderService.updateById(workOrder);*/
 
         return modelInstall;
+    }
+
+    private void removeDraft(ModelInstallDTO dto) {
+        UpdateWrapper<ModelInstall> wrapper = new UpdateWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        wrapper.eq("`number`",dto.getNumber());
+        remove(wrapper);
     }
 
     @Override

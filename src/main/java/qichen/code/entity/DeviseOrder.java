@@ -168,4 +168,10 @@ private static final long serialVersionUID=1L;
 
     @TableField("`verifyTime`")
     private LocalDateTime verifyTime;
+
+    @TableField("fileName1")
+    private String fileName1;
+
+    @TableField("fileName2")
+    private String fileName2;
 }

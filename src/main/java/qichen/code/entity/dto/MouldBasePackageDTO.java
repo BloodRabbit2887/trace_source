@@ -10,4 +10,9 @@ import java.util.List;
 @Data
 public class MouldBasePackageDTO extends MouldBasePackage {
     private List<AssembleComponentDTO> components;
+
+    private String submitName;
+    private String verifyName;
+
+    private Integer submit;
 }

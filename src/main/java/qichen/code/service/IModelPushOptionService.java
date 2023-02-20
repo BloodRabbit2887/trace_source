@@ -2,6 +2,8 @@ package qichen.code.service;
 
 import qichen.code.entity.ModelPushOption;
 import com.baomidou.mybatisplus.extension.service.IService;
+import qichen.code.entity.dto.ModelPushOptionDTO;
+import qichen.code.model.Filter;
 
 import java.util.List;
 
@@ -16,4 +18,6 @@ import java.util.List;
 public interface IModelPushOptionService extends IService<ModelPushOption> {
 
     List<ModelPushOption> commitModelPushLogBatch(List<String> list);
+
+    List<ModelPushOption> listFilter(ModelPushOptionDTO dto, Filter filter);
 }

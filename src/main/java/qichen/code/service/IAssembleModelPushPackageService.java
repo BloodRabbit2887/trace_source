@@ -3,6 +3,10 @@ package qichen.code.service;
 import qichen.code.entity.AssembleModelPushPackage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.AssembleModelPushPackageDTO;
+import qichen.code.model.Filter;
+
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  * <p>
@@ -17,4 +21,14 @@ public interface IAssembleModelPushPackageService extends IService<AssembleModel
     AssembleModelPushPackage add(AssembleModelPushPackageDTO dto);
 
     AssembleModelPushPackage verify(Integer id, Integer userId, Integer status, String remark);
+
+    List<AssembleModelPushPackage> listFilter(AssembleModelPushPackageDTO dto, Filter filter);
+
+    AssembleModelPushPackageDTO getModel(Integer userId, String number);
+
+    List<AssembleModelPushPackageDTO> listByFilter(AssembleModelPushPackageDTO dto, Filter filter);
+
+    BigInteger listCount(AssembleModelPushPackageDTO dto, Filter filter);
+
+    AssembleModelPushPackage getByNumber(String number);
 }

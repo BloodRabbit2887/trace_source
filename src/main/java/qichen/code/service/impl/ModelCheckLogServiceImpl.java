@@ -3,27 +3,27 @@ package qichen.code.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
-import qichen.code.entity.DeviseOrder;
-import qichen.code.entity.ModelCheckLog;
-import qichen.code.entity.SubmitTableOptions;
-import qichen.code.entity.WorkOrder;
-import qichen.code.entity.dto.DeviseOrderDTO;
-import qichen.code.entity.dto.ModelCheckLogDTO;
-import qichen.code.entity.dto.SubmitTableOptionDTO;
-import qichen.code.entity.dto.TableOptionDTO;
+import qichen.code.entity.*;
+import qichen.code.entity.dto.*;
 import qichen.code.exception.BusinessException;
 import qichen.code.exception.ResException;
 import qichen.code.mapper.ModelCheckLogMapper;
+import qichen.code.model.AssembleTableTypeModel;
 import qichen.code.model.DeptTypeModel;
+import qichen.code.model.Filter;
+import qichen.code.model.TableTypeModel;
 import qichen.code.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import qichen.code.utils.BeanUtils;
 import qichen.code.utils.JsonUtils;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,12 +49,21 @@ public class ModelCheckLogServiceImpl extends ServiceImpl<ModelCheckLogMapper, M
     private ITableOptionsService tableOptionsService;
     @Autowired
     private ISubmitTableOptionsService submitTableOptionsService;
+    @Autowired
+    private IUserService userService;
+    @Autowired
+    private IAdminService adminService;
+    @Autowired
+    private IUserTableProjectService userTableProjectService;
 
 
     @Override
     public ModelCheckLog submit(ModelCheckLogDTO dto) {
 
-        checkDraft(dto);
+/*        checkDraft(dto);*/
+        if (dto.getId()==null){
+            removeDraft(dto);
+        }
 
         checkAlready(dto.getNumber());//同时只存在一张工单
 
@@ -92,6 +101,8 @@ public class ModelCheckLogServiceImpl extends ServiceImpl<ModelCheckLogMapper, M
             params.put("readme","模具说明书");
             params.put("lineImg","电控机构接线图");*/
             JsonUtils.checkColumnNull(params, JSONObject.parseObject(JSON.toJSONString(dto)));
+
+            userTableProjectService.updateStatus(dto.getNumber(),dto.getSubmitId(),1, TableTypeModel.TABLE_TWO);
         }
 
         ModelCheckLog modelCheckLog = BeanUtils.copyAs(dto, ModelCheckLog.class);
@@ -121,10 +132,18 @@ public class ModelCheckLogServiceImpl extends ServiceImpl<ModelCheckLogMapper, M
         }
 
         //TODO  正式删除
-        workOrder.setDeptId(DeptTypeModel.DEPT_QUALITY);
-        workOrderService.updateById(workOrder);
+/*        workOrder.setDeptId(DeptTypeModel.DEPT_QUALITY);
+        workOrderService.updateById(workOrder);*/
 
         return modelCheckLog;
+    }
+
+    private void removeDraft(ModelCheckLogDTO dto) {
+        UpdateWrapper<ModelCheckLog> wrapper = new UpdateWrapper<>();
+        wrapper.eq("submitId",dto.getSubmitId());
+        wrapper.eq("draft",1);
+        wrapper.eq("`number`",dto.getNumber());
+        remove(wrapper);
     }
 
     private void checkAlready(String number) {
@@ -196,6 +215,160 @@ public class ModelCheckLogServiceImpl extends ServiceImpl<ModelCheckLogMapper, M
             return null;
         }
         return getDTO(modelCheckLog);
+    }
+
+    @Override
+    public List<ModelCheckLog> listFilter(ModelCheckLogDTO checkLogDTO, Filter filter) {
+        QueryWrapper<ModelCheckLog> wrapper = new QueryWrapper<>();
+        addFilter(wrapper,checkLogDTO,filter);
+        return list(wrapper);
+    }
+
+    @Override
+    public ModelCheckLogDTO getDetail(Integer id) {
+        ModelCheckLog checkLog = getById(id);
+        if (checkLog==null){
+            throw new BusinessException(ResException.QUERY_MISS);
+        }
+        return getDTO(checkLog);
+    }
+
+    @Override
+    public List<ModelCheckLogDTO> listByFilter(ModelCheckLogDTO dto, Filter filter) {
+        List<ModelCheckLog> list = listFilter(dto, filter);
+        if (!CollectionUtils.isEmpty(list) && list.size()>0){
+           return listDTO(list);
+        }
+        return null;
+    }
+
+    private List<ModelCheckLogDTO> listDTO(List<ModelCheckLog> list) {
+        List<ModelCheckLogDTO> dtos = BeanUtils.copyAs(list, ModelCheckLogDTO.class);
+
+        List<User> users = (List<User>) userService.listByIds(list.stream().map(ModelCheckLog::getSubmitId).distinct().collect(Collectors.toList()));
+        List<Admin> admins = new ArrayList<>();
+        List<ModelCheckLog> verifys = list.stream().filter(ModelCheckLog -> ModelCheckLog.getVerifyId() != null).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(verifys) && verifys.size()>0){
+            admins = (List<Admin>) adminService.listByIds(verifys.stream().map(ModelCheckLog::getVerifyId).distinct().collect(Collectors.toList()));
+        }
+
+        for (ModelCheckLogDTO dto : dtos) {
+            if (!CollectionUtils.isEmpty(users) && users.size()>0){
+                for (User user : users) {
+                    if (user.getId().equals(dto.getSubmitId())){
+                        dto.setSubmitName(user.getName());
+                    }
+                }
+            }
+            if (!CollectionUtils.isEmpty(admins) && admins.size()>0){
+                for (Admin admin : admins) {
+                    if (admin.getId().equals(dto.getVerifyId())){
+                        dto.setVerifyName(admin.getAdminName());
+                    }
+                }
+            }
+        }
+
+        return dtos;
+    }
+
+    @Override
+    public BigInteger listCount(ModelCheckLogDTO dto, Filter filter) {
+        QueryWrapper<ModelCheckLog> wrapper = new QueryWrapper<>();
+        if (filter!=null){
+            filter.setPage(null);
+            filter.setPageSize(null);
+        }
+        addFilter(wrapper,dto,filter);
+        return BigInteger.valueOf(baseMapper.selectCount(wrapper));
+    }
+
+    @Transactional
+    @Override
+    public ModelCheckLog verifyWorkOrder(Integer userId, Integer id, Integer status, String verifyRemark) {
+
+        ModelCheckLog checkLog = getById(id);
+        if (checkLog==null || checkLog.getDraft()==1){
+            throw new BusinessException(ResException.QUERY_MISS);
+        }
+        WorkOrder workOrder = workOrderService.getByNumber(checkLog.getNumber());
+        if (workOrder==null){
+            throw new BusinessException(ResException.QUERY_MISS.getCode(),"工单信息有误");
+        }
+        if (!workOrder.getDeptId().equals(DeptTypeModel.DEPT_QUALITY)){
+            throw new BusinessException(ResException.MAKE_ERR.getCode(),"工单环节异常");
+        }
+        checkLog.setVerifyId(userId);
+        checkLog.setStatus(status);
+        checkLog.setVerifyRemark(verifyRemark);
+        if (checkLog.getStatus()==1){
+            removeByNumber(checkLog);
+            workOrder.setDeptId(DeptTypeModel.DEPT_WORK_ASSEMBLE);
+            workOrder.setTableType(AssembleTableTypeModel.TYPE_MOULE_BASE);
+            workOrder.setTableTypeStatus(0);
+            workOrderService.updateById(workOrder);
+        }
+        updateById(checkLog);
+
+        userTableProjectService.updateStatus(checkLog.getNumber(),checkLog.getSubmitId(),status==1?2:0, TableTypeModel.TABLE_TWO);
+
+        return checkLog;
+    }
+
+    @Override
+    public ModelCheckLog getByNumber(String number) {
+        QueryWrapper<ModelCheckLog> wrapper = new QueryWrapper<>();
+        wrapper.eq("`number`",number);
+        wrapper.eq("`draft`",0);
+        wrapper.ne("`verifyStatus`",2);
+        return getOne(wrapper);
+    }
+
+    private void removeByNumber(ModelCheckLog checkLog) {
+        UpdateWrapper<ModelCheckLog> wrapper = new UpdateWrapper<>();
+        wrapper.eq("`number`",checkLog.getNumber());
+        wrapper.ne("ID",checkLog.getId());
+        remove(wrapper);
+    }
+
+    private void addFilter(QueryWrapper<ModelCheckLog> wrapper, ModelCheckLogDTO dto, Filter filter) {
+        if (dto!=null){
+            if (dto.getDraft()!=null){
+                wrapper.eq("`draft`",dto.getDraft());
+            }
+            if (dto.getVerifyStatus()!=null){
+                wrapper.eq("verifyStatus",dto.getVerifyStatus());
+            }
+            if (dto.getStatus()!=null){
+                wrapper.eq("`Status`",dto.getStatus());
+            }
+            if (!StringUtils.isEmpty(dto.getNumber()) && dto.getNumber().length()>0){
+                wrapper.eq("`number`",dto.getNumber());
+            }
+            if (dto.getSubmitId()!=null){
+                wrapper.eq("submitId",dto.getSubmitId());
+            }
+            if (dto.getSubmit()!=null){
+                wrapper.ne("verifyStatus",2);
+            }
+        }
+        if (filter!=null){
+            if (filter.getCreateTimeBegin()!=null){
+                wrapper.ge("createTime",filter.getCreateTimeBegin());
+            }
+            if (filter.getCreateTimeEnd()!=null){
+                wrapper.le("createTime",filter.getCreateTimeEnd());
+            }
+            if (!StringUtils.isEmpty(filter.getOrders()) && filter.getOrders().length()>0){
+                if (filter.getOrderBy()!=null){
+                    wrapper.orderBy(true,filter.getOrderBy(),filter.getOrders());
+                }
+            }
+            if (filter.getPage()!=null && filter.getPageSize()!=null && filter.getPage()!=0 && filter.getPageSize()!=0){
+                int fast = filter.getPage()<=1?0:(filter.getPage()-1)*filter.getPageSize();
+                wrapper.last(" limit "+fast+", "+filter.getPageSize());
+            }
+        }
     }
 
     private ModelCheckLogDTO getDTO(ModelCheckLog modelCheckLog) {

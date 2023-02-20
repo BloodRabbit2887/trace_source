@@ -4,11 +4,25 @@ spring:
   application:
     name: trace_source
   datasource:
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    name: defaultDataSource
+#    url: jdbc:mysql://148.70.151.234:3306/trace_source?useUnicode=true&characterEncoding=UTF8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true
+#    username: root
+#    password: qichen
     driver-class-name: com.mysql.cj.jdbc.Driver
     name: defaultDataSource
-    url: jdbc:mysql://148.70.151.234:3306/trace_source?useUnicode=true&characterEncoding=UTF8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true
+    url: jdbc:mysql://148.70.151.234:3306/dev_trace_source?useUnicode=true&characterEncoding=UTF8&useSSL=false&serverTimezone=GMT%2B8&rewriteBatchedStatements=true
     username: root
     password: qichen
+    hikari:
+      read-only: false
+      connection-timeout: 60000
+      idle-timeout: 60000
+      validation-timeout: 3000
+      max-lifetime: 60000
+      login-timeout: 5
+      maximum-pool-size: 60
+      minimum-idle: 10
   redis:
     host: 118.24.112.64
     port: 6379

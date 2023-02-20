@@ -3,6 +3,10 @@ package qichen.code.service;
 import qichen.code.entity.SparePartsLog;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.SparePartsLogDTO;
+import qichen.code.model.Filter;
+
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  * <p>
@@ -21,4 +25,16 @@ public interface ISparePartsLogService extends IService<SparePartsLog> {
     SparePartsLog getDraft(Integer userId);
 
     SparePartsLogDTO getVerify(String number);
+
+    List<SparePartsLog> listFilter(SparePartsLogDTO logDTO, Filter filter);
+
+    List<SparePartsLogDTO> listByFilter(SparePartsLogDTO dto, Filter filter);
+
+    BigInteger listCount(SparePartsLogDTO dto, Filter filter);
+
+    SparePartsLogDTO getDetail(Integer id);
+
+    SparePartsLog verifyWorkOrder(Integer userId, Integer id, Integer status, String verifyRemark);
+
+    SparePartsLog getByNumber(String number);
 }

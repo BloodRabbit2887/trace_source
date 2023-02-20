@@ -12,6 +12,10 @@ public class ModelCheckLogDTO extends ModelCheckLog {
 
     private List<Item> items;
 
+    private String submitName;
+    private String verifyName;
+    private Integer submit;
+
     @Data
     public static class Item{
         private String title;

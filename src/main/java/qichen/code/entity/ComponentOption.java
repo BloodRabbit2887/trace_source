@@ -94,5 +94,8 @@ private static final long serialVersionUID=1L;
     @TableField("`type`")
     private Integer type;
 
+    @TableField("`must`")
+    private Integer must;
+
 
 }

@@ -45,4 +45,8 @@ public interface IUserService extends IService<User> {
     User delete(Integer id);
 
     void changePermission(Integer userId, UserDTO user);
+
+    void cleanDeptRoleByRoleId(Integer roleId);
+
+/*    Integer getMaxDeptUserId(Integer deptId);*/
 }

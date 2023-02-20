@@ -3,6 +3,10 @@ package qichen.code.service;
 import qichen.code.entity.AssembleCheckAlloyPackage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import qichen.code.entity.dto.AssembleCheckAlloyPackageDTO;
+import qichen.code.model.Filter;
+
+import java.math.BigInteger;
+import java.util.List;
 
 /**
  * <p>
@@ -19,4 +23,16 @@ public interface IAssembleCheckAlloyPackageService extends IService<AssembleChec
     AssembleCheckAlloyPackage verify(Integer id, Integer userId, Integer status, String remark);
 
     AssembleCheckAlloyPackageDTO getAlloyModel(Integer userId, String nummber);
+
+    List<AssembleCheckAlloyPackage> listFilter(AssembleCheckAlloyPackageDTO packageDTO, Filter filter);
+
+    List<AssembleCheckAlloyPackageDTO> listByFilter(AssembleCheckAlloyPackageDTO dto, Filter filter);
+
+    BigInteger listCount(AssembleCheckAlloyPackageDTO dto, Filter filter);
+
+    AssembleCheckAlloyPackageDTO getAlloyDetail(Integer id);
+
+    AssembleCheckAlloyPackageDTO getAlloyDetailByNumber(String number, Integer userId);
+
+    AssembleCheckAlloyPackage getByNumber(String number);
 }

@@ -2,14 +2,14 @@ package qichen.code.service;
 
 import qichen.code.entity.WorkOrder;
 import com.baomidou.mybatisplus.extension.service.IService;
+import qichen.code.entity.dto.UserTableProjectDTO;
 import qichen.code.entity.dto.WorkOrderDTO;
 import qichen.code.exception.BusinessException;
-import qichen.code.model.Filter;
-import qichen.code.model.ResponseBean;
-import qichen.code.model.WorkOrderModel;
+import qichen.code.model.*;
 
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -42,4 +42,20 @@ public interface IWorkOrderService extends IService<WorkOrder> {
     WorkOrderDTO getDetail(Integer id, boolean detail);
 
     WorkOrderModel changeToModel(WorkOrderDTO dto);
+
+    Map<String, Object> listNeedOrders(Integer userId, Filter filter);
+
+    WorkOrderDTO getDetailByNumber(String number, boolean detail);
+
+    HomeModel getHomeModel();
+
+    void checkFinish(UserTableProjectDTO dto);
+
+    Map<String, Object> newListNeedOrders(Integer userId,Integer tableType, Filter filter);
+
+    WorkOrder newLinkChange(Integer userId, String number, Integer status, String remark, Integer toUserId);
+
+    List<TableTypeDTO> queryTableTypes(Integer deptId);
+
+    Map<String, Object> listDistributionProjects(Integer tableType, Filter filter, Integer deptId);
 }

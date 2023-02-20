@@ -9,6 +9,7 @@ import java.util.List;
 @Data
 public class WorkOrderModel {
 
+
     private WorkOrderDTO workOrderDTO;
 
     private DeviseModel deviseOrder;//设计部
